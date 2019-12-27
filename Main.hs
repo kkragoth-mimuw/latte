@@ -8,19 +8,16 @@ import           System.Environment            (getArgs, getProgName)
 import           System.Exit                   (exitFailure, exitSuccess)
 import           System.IO                     (hGetContents, stdin)
 
-import           AbsLakke
-import           LexLakke
-import           ParLakke
-import           PrintLakke
-import           SkelLakke
+import           AbsLatte
+import           LexLatte
+import           ParLatte
+import           PrintLatte
+import           SkelLatte
 
-import           Interpreter.Program
-import           Interpreter.Semantics.Domains (initEnv, initStore)
-import           Interpreter.ErrorTypes (pprintErrorMsg)
 
-import           Typechecker.Typecheck
-import           Typechecker.Environment
-import           Typechecker.Errors (pprintTypecheckerErrorMsg)
+import           Frontend.Typechecker.Typecheck
+import           Frontend.Typechecker.Environment
+import           Frontend.Typechecker.Errors (pprintTypecheckerErrorMsg)
 
 
 import           ErrM
@@ -42,16 +39,17 @@ run _ _ [] = exitSuccess
 run v p s = let ts = myLLexer s in case p ts of
            Bad s    -> do putStrLn "\nParse failed...\n"
                           exitFailure
-           Ok  tree -> case runTypecheck initTCMEnv tree of
+           Ok  tree -> case runTypecheck initTCEnv tree of
                             Left error ->  pprintTypecheckerErrorMsg error
                             Right _ -> do
-                                      let ((result, _), buffer) = runProgram initEnv initStore tree
-                                      putStrLn ""
-                                      putStr $ unlines buffer
+                                      putStrLn "OK"
+                                      -- let ((result, _), buffer) = runProgram initEnv initStore tree
+                                      -- putStrLn ""
+                                      -- putStr $ unlines buffer
 
-                                      case result of
-                                        Left error -> pprintErrorMsg error
-                                        _          -> exitSuccess
+                                      -- case result of
+                                        -- Left error -> pprintErrorMsg error
+                                        -- _          -> exitSuccess
 
 
 showTree :: (Show a, Print a) => Int -> a -> IO ()

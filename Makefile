@@ -1,12 +1,13 @@
 run:
-	ghc -o lakke generated/*.hs src/Typechecker/*.hs src/Interpreter/*.hs src/Interpreter/Semantics/*.hs  Main.hs
+	ghc -o lakke generated/*.hs src/Frontend/Typechecker/*.hs  Main.hs
 wc:
 	find src -name '*.hs' | xargs wc -l
 generate_grammar:
 	mkdir -p generated && \
 	cd generated && \
 	bnfc -m ../grammar/Latte.cf
-	cd generated && make
+	cd generated && make && \
+	rm TestLatte.hs
 
 .PHONY: clean
 clean:
