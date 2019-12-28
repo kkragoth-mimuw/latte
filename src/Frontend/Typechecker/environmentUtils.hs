@@ -35,3 +35,6 @@ checkIfIsAlreadyDeclaredAtCurrentLevel ident = do
 
 increaseLevel :: TCEnv -> TCEnv
 increaseLevel env = env { level = (level env) + 1}
+
+indicateReturnType :: TCEnv -> Type -> TCEnv
+indicateReturnType env type' = env { currentFunctionReturnType = Just (type') }

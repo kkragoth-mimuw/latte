@@ -38,6 +38,8 @@ typecheckTopDef (FnDef fnType fnName args (Block stmts)) = do
     let newEnv = env { typesMap = newTypesMap }
     let newEnvForFunction = Prelude.foldr updateEnv newEnv args
 
+    local (const $ indicateReturnType (increaseLevel newEnvForFunction) fnType) (typecheckStmts stmts)
+
     return newEnv
 
 
@@ -57,21 +59,55 @@ typecheckStmtOrDeclaration stmt =
     else
         typecheckStmtWithLogging stmt >> ask
 
+typecheckDeclWithLogging :: Stmt -> TCM TCEnv
+typecheckDeclWithLogging stmt = typecheckDecl stmt `catchError` (\typecheckError -> throwError (appendLogToTypecheckError typecheckError stmt))
+
+typecheckDecl :: Stmt -> TCM TCEnv
+typecheckDecl (Decl type' []) = ask
+typecheckDecl (Decl type' (item:items)) = do
+    env <- typecheckDeclItem type' item
+    local (const env) (typecheckDecl (Decl type' items))
+
+
+typecheckDeclItem :: Type -> Item -> TCM TCEnv
+typecheckDeclItem type' (Init ident expr) = do
+    exprType <- typecheckExpr expr
+
+    checkIfIsAlreadyDeclaredAtCurrentLevel ident
+
+    when (type' /= exprType)
+        (throwError $ initTypecheckError $ TCInvalidTypeExpectedType exprType type')
+
+    env <- ask
+
+    let updatedTypesMap = Map.insert ident (type', level env) (typesMap env)
+
+    return env { typesMap = updatedTypesMap}
+
+typecheckDeclItem type' (NoInit ident) = do
+    checkIfIsAlreadyDeclaredAtCurrentLevel ident
+
+    env <- ask
+
+    let updatedTypesMap = Map.insert ident (type', level env) (typesMap env)
+
+    return env { typesMap = updatedTypesMap}
+
 typecheckStmtWithLogging :: Stmt -> TCM ()
 typecheckStmtWithLogging stmt = typecheckStmt stmt `catchError` (\typecheckError -> throwError (appendLogToTypecheckError typecheckError stmt))
 
 typecheckStmt :: Stmt -> TCM ()
 typecheckStmt Empty = return ()
-typecheckStmt (Cond expr block@(Block blockTrue)) = typecheckStmt (CondElse expr block (Block []))
+typecheckStmt (Cond expr stmt) = typecheckStmt (CondElse expr stmt (Empty))
 
-typecheckStmt (CondElse expr (Block blockTrue) (Block blockFalse)) = do
+typecheckStmt (CondElse expr stmtTrue stmtFalse) = do
     exprType <- typecheckExprWithErrorLogging expr
 
     unless (exprType == Bool)
         (throwError $ initTypecheckError $ TCInvalidTypeExpectedType exprType Bool)
 
-    typecheckStmts blockTrue
-    typecheckStmts blockFalse
+    typecheckStmt stmtTrue
+    typecheckStmt stmtFalse
 
 
 typecheckExprWithErrorLogging :: Expr -> TCM Type
@@ -127,7 +163,8 @@ typecheckExpr(EAdd expr1 addop expr2) = do
         (Int, x, _)      -> throwError $ initTypecheckError $ TCInvalidTypeExpectedType x Int
         (x, _, _)        -> throwError $ initTypecheckError $ TCInvalidTypeExpectedTypes x [Int, Str]
 
-typecheckExpr(EVar ident) = ident >>= extractVariableType
+typecheckExpr(EVar ident) = do 
+    extractVariableType ident
 
 typecheckExpr(EApp ident exprs) = do
     funcType <- extractVariableType ident
@@ -152,15 +189,6 @@ typecheckExpr2 leftExpr rightExpr = do
     leftType <- typecheckExprWithErrorLogging leftExpr
     rightType <- typecheckExprWithErrorLogging rightExpr
     return (leftType, rightType)
-
-
-evalLValueToIdent :: Expr -> TCM Ident
-evalLValueToIdent (EVar ident) = ident
-evalLValueToIdent loc           = throwError $ initTypecheckError $ TCNotLValue
-
-
--- evalLValue :: LValue -> TCM Ident
--- evalLValue (LValue n) = return n
 
 
 isStmtDeclaration :: Stmt -> Bool

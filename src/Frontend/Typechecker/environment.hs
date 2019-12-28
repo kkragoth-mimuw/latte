@@ -9,7 +9,13 @@ data TCEnv = TCEnv {  typesMap                  :: Map.Map Ident (Type, Integer)
                     , currentFunctionReturnType :: Maybe Type
                     }
 
-initTCEnv = TCEnv {   typesMap = Map.empty
+initTCEnv = TCEnv {   typesMap = Map.fromList [
+    (Ident "printInt", ((Fun Void ([Int])), -1)),
+    (Ident "printString", ((Fun Void ([Str])), -1)),
+    (Ident "error", ((Fun Void []), -1)),
+    (Ident "readInt", ((Fun Int []), -1)),
+    (Ident "readString", ((Fun Str []), -1))
+    ]
                     , level = 0
                     , currentFunctionReturnType = Nothing
                     }
