@@ -149,11 +149,9 @@ typecheckExpr (EMul exprLeft _ exprRight) = do
 typecheckExpr (ERel exprLeft _ exprRight) = do
     (left, right) <- typecheckExpr2 exprLeft exprRight
     case (left, right) of
-        (Str, Str) -> return Bool
         (Int, Int) -> return Bool
         (Int, x)   -> throwError $ initTypecheckError $ TCInvalidTypeExpectedType x Int
-        (Str, x)   ->  throwError $ initTypecheckError $ TCInvalidTypeExpectedType x Str
-        (x, _)     -> throwError $ initTypecheckError $ TCInvalidTypeExpectedTypes x [Int, Str]
+        (x, _)     -> throwError $ initTypecheckError $ TCInvalidTypeExpectedType x Int
 typecheckExpr(EAdd expr1 addop expr2) = do
     (left, right) <- typecheckExpr2 expr1 expr2
     case (left, right, addop) of
