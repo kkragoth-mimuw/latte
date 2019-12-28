@@ -11,6 +11,7 @@ import Frontend.Typechecker.Utils
 data TypecheckError = TCInvalidTypeExpectedType Type Type
                     | TCInvalidTypeExpectedTypes Type [Type]
                     | TCInvalidFunctionAppTypes [Type] [Type]
+                    | TCInvalidNumberOfArguments
                     | TCUndeclaredVariable Ident
                     | TCNotLValue
                     | TCRedeclaration Ident
@@ -21,6 +22,7 @@ instance Show TypecheckError where
     show (TCInvalidTypeExpectedTypes type' allowedTypes) = printf "Invalid type: %s. Expected %s" (prettyShowType type') (intercalate " or " (map prettyShowType allowedTypes))
     show (TCRedeclaration (Ident ident))                 = printf "Tried to redeclare: %s" (show ident)
     show TCNotLValue                                     = "Not lvalue"
+    show TCInvalidNumberOfArguments                      = "Passed invalid number of arguments to function"
     show (TCDebug str)                                   = printf "%s" (show str)
     show _ = ""
 

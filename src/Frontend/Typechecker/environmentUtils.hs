@@ -11,6 +11,11 @@ import Frontend.Typechecker.TCM
 import Frontend.Typechecker.Errors
 
 
+updateEnv :: Arg -> TCEnv -> TCEnv
+updateEnv (Arg type' ident) env = env { typesMap = updatedTypesMap }
+    where updatedTypesMap = Map.insert ident (type', level env) (typesMap env)
+
+
 extractVariableType :: Ident -> TCM Type
 extractVariableType ident = do
     env <- ask
