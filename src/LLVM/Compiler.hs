@@ -22,17 +22,19 @@ class Compilable f  where
     compile :: f -> CM ()
 
 data Env = Env {
-    returnType :: Type
+    envs :: Map.Map String String  
 }
 
 initEnv = Env {
-    returnType = Void
 }
 
 data Store = Store {
+    currentFunction :: Ident,
+    currentBlockNumber :: Integer,
     functions :: Map.Map Ident Type,
     labelCounter :: Integer,
-    counter :: Integer
+    counter :: Integer,
+    functionBlocks :: Map.Map Ident FunctionBlocks
 } deriving (Show)
 
 initStore = Store {
@@ -44,12 +46,12 @@ initStore = Store {
 data FunctionBlocks = FunctionBlocks {
     initialFunctionBlock :: LLVMBlock,
     blocks :: [LLVMBlock]
-}
+} deriving (Show)
 
 data LLVMBlock = LLVMBlock {
     label :: Integer,
     code :: LLVMInstruction
-}
+} deriving (Show)
 
 
 data BinOp = AddBinOp AddOp | MulBinOp MulOp | RelBinOp RelOp | AndOp | OrOp
@@ -80,5 +82,15 @@ compileFnDefs (x:xs) = do
 
 compileFnDef :: TopDef -> CM String
 compileFnDef (FnDef type' ident args block) = do
-    modify (\store -> store { labelCounter = 0 })
+    modify (\store -> store {
+        currentFunction = ident,
+        currentBlockNumber = 0,
+        labelCounter = 0
+    })
+    compileBlock block
     return ""
+
+compileBlock :: Block -> CM ()
+compileBlock (Block stmts) = do
+    num <- get currentBlockNumber
+    return
