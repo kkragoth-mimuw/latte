@@ -1,5 +1,5 @@
 run:
-	ghc -o latte generated/*.hs src/Frontend/Typechecker/*.hs  Main.hs
+	ghc -o latte generated/*.hs src/LLVM/*.hs frontend.hs  Main.hs
 wc:
 	find src -name '*.hs' | xargs wc -l
 generate_grammar:

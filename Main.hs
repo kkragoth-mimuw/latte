@@ -15,10 +15,8 @@ import           PrintLatte
 import           SkelLatte
 
 
-import           Frontend.Typechecker.Typecheck
-import           Frontend.Typechecker.Environment
-import           Frontend.Typechecker.Errors (pprintTypecheckerErrorMsg)
-
+import           Frontend (runTypecheck, pprintTypecheckerErrorMsg, initTCEnv)
+import           LLVM.Compiler
 
 import           ErrM
 
@@ -43,13 +41,11 @@ run v p s = let ts = myLLexer s in case p ts of
                             Left error ->  pprintTypecheckerErrorMsg error
                             Right _ -> do
                                       putStrLn "OK"
-                                      -- let ((result, _), buffer) = runProgram initEnv initStore tree
-                                      -- putStrLn ""
-                                      -- putStr $ unlines buffer
-
-                                      -- case result of
-                                        -- Left error -> pprintErrorMsg error
-                                        -- _          -> exitSuccess
+                                      showTree v tree
+                                      
+                                      result <- runCompiler tree
+                                      putStrLn result
+                                     
 
 
 showTree :: (Show a, Print a) => Int -> a -> IO ()
