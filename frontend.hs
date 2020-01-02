@@ -66,6 +66,7 @@ data TypecheckError = TCInvalidTypeExpectedType Type Type
                     | TCUndeclaredVariable Ident
                     | TCNotLValue
                     | TCRedeclaration Ident
+                    | TCReturn
                     | TCDebug String
 
 instance Show TypecheckError where
@@ -75,6 +76,7 @@ instance Show TypecheckError where
     show TCNotLValue                                     = "Not lvalue"
     show TCInvalidNumberOfArguments                      = "Passed invalid number of arguments to function"
     show (TCDebug str)                                   = printf "%s" (show str)
+    show TCReturn                                        = "return error"
     show _ = ""
 
 data TypecheckErrorWithLogging = TypecheckErrorWithLogging TypecheckError Integer [String] deriving (Show)
@@ -198,6 +200,46 @@ typecheckStmtWithLogging stmt = typecheckStmt stmt `catchError` (\typecheckError
 
 typecheckStmt :: Stmt -> TCM ()
 typecheckStmt Empty = return ()
+typecheckStmt (BStmt (Block stmts)) = local increaseLevel (typecheckStmts stmts)
+-- typecheckStmt (Decl) -> typecheckDecl
+typecheckStmt (Ass ident expr) = do
+    lvalueType <- extractVariableType ident
+    rvalueType <- typecheckExpr expr
+
+    when (lvalueType /= rvalueType)
+        (throwError $ initTypecheckError $ TCInvalidTypeExpectedType rvalueType lvalueType)
+
+typecheckStmt (Incr ident) = do
+    lvalueType <- extractVariableType ident
+
+    unless (lvalueType == Int)
+        (throwError $ initTypecheckError $ TCInvalidTypeExpectedType lvalueType Int)
+
+typecheckStmt (Decr ident) = do
+    lvalueType <- extractVariableType ident
+
+    unless (lvalueType == Int)
+        (throwError $ initTypecheckError $ TCInvalidTypeExpectedType lvalueType Int)
+
+typecheckStmt VRet = do
+    env <- ask
+
+    case currentFunctionReturnType env of
+        Nothing -> throwError $ initTypecheckError TCReturn
+        Just Void -> return ()
+        Just t -> throwError $ initTypecheckError $ TCInvalidTypeExpectedType Void t
+
+typecheckStmt (Ret expr) = do
+        exprType <- typecheckExpr expr
+    
+        env <- ask
+    
+        case currentFunctionReturnType env of
+            Nothing -> throwError $ initTypecheckError $ TCInvalidTypeExpectedType exprType Void
+            Just a | exprType == a -> return ()
+            Just t -> throwError $ initTypecheckError $ TCInvalidTypeExpectedType exprType t
+        
+
 typecheckStmt (Cond expr stmt) = typecheckStmt (CondElse expr stmt (Empty))
 
 typecheckStmt (CondElse expr stmtTrue stmtFalse) = do
@@ -209,6 +251,15 @@ typecheckStmt (CondElse expr stmtTrue stmtFalse) = do
     typecheckStmt stmtTrue
     typecheckStmt stmtFalse
 
+typecheckStmt (While expr stmt) = do
+    conditionType <- typecheckExprWithErrorLogging expr
+
+    unless (conditionType == Bool)
+        (throwError $ initTypecheckError $ TCInvalidTypeExpectedType conditionType Bool)
+
+    typecheckStmt stmt
+
+typecheckStmt (SExp expr) = typecheckExpr expr >> return ()
 
 typecheckExprWithErrorLogging :: Expr -> TCM Type
 typecheckExprWithErrorLogging expr = typecheckExpr expr `catchError` (\typecheckError -> throwError (appendLogToTypecheckError typecheckError expr))

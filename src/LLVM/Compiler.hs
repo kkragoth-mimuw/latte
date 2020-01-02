@@ -46,7 +46,8 @@ initStore = Store {
     functions = Map.empty,
     labelCounter = 0,
     registerCounter = 0,
-    functionBlocks = Map.empty
+    functionBlocks = Map.empty,
+    stringsMap = Map.empty
 }
 
 type BlockMap = Map.Map Integer LLVMBlock
@@ -308,7 +309,6 @@ compileExpr (EVar ident) = do
     })
     emit (Load registerVar var)
     return registerVar
-
 compileExpr (ELitInt i) = do
     blockLabel <- gets currentLabel
     return LLVMVariable {
@@ -317,7 +317,22 @@ compileExpr (ELitInt i) = do
         blockLabel = blockLabel,
         ident = Nothing
     }
-
+compileExpr(ELitTrue) = do
+    blockLabel <- gets currentLabel
+    return LLVMVariable {
+        type' = Bool,
+        address = LLVMAddressImmediate 1,
+        blockLabel = blockLabel,
+        ident = Nothing
+    }
+compileExpr(ELitFalse) = do
+    blockLabel <- gets currentLabel
+    return LLVMVariable {
+        type' = Bool,
+        address = LLVMAddressImmediate 0,
+        blockLabel = blockLabel,
+        ident = Nothing
+    }
 compileExpr expr = error "not implemented"
 
 getNextRegisterCounter :: GenM Integer

@@ -1,0 +1,7 @@
+int main() {
+	if (true) {
+		int a = 2;
+	} else {
+		int b = 3;
+	}
+}
