@@ -1,3 +1,4 @@
+-- https://www.youtube.com/watch?v=__jiz18l84U
 module Frontend where
 
 import Control.Monad.Except
@@ -44,8 +45,8 @@ extractVariableType ident = do
         _ -> throwError $ initTypecheckError $ TCUndeclaredVariable ident
 
 
-checkIfIsAlreadyDeclaredAtCurrentLevel :: Ident -> TCM ()
-checkIfIsAlreadyDeclaredAtCurrentLevel ident = do
+checkIfIsAlreadyDeclaredATCurrentLevel :: Ident -> TCM ()
+checkIfIsAlreadyDeclaredATCurrentLevel ident = do
     env <- ask
 
     case Map.lookup ident $ typesMap env of
@@ -130,7 +131,7 @@ typecheckTopDefs (x:xs) = do
 
 typecheckTopDef :: TopDef -> TCM TCEnv
 typecheckTopDef (FnDef fnType fnName args (Block stmts)) = do 
-    checkIfIsAlreadyDeclaredAtCurrentLevel fnName
+    checkIfIsAlreadyDeclaredATCurrentLevel fnName
     env <- ask
     let funcType = Fun fnType (Prelude.map argToType args)
     let newTypesMap = Map.insert fnName (funcType, level env) (typesMap env)
@@ -172,7 +173,7 @@ typecheckDeclItem :: Type -> Item -> TCM TCEnv
 typecheckDeclItem type' (Init ident expr) = do
     exprType <- typecheckExpr expr
 
-    checkIfIsAlreadyDeclaredAtCurrentLevel ident
+    checkIfIsAlreadyDeclaredATCurrentLevel ident
 
     when (type' /= exprType)
         (throwError $ initTypecheckError $ TCInvalidTypeExpectedType exprType type')
@@ -184,7 +185,7 @@ typecheckDeclItem type' (Init ident expr) = do
     return env { typesMap = updatedTypesMap}
 
 typecheckDeclItem type' (NoInit ident) = do
-    checkIfIsAlreadyDeclaredAtCurrentLevel ident
+    checkIfIsAlreadyDeclaredATCurrentLevel ident
 
     env <- ask
 

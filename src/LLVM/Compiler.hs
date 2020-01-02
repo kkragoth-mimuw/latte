@@ -12,7 +12,7 @@ import Data.Maybe (fromJust)
 
 import AbsLatte 
 
-type CM a = (ReaderT Env (StateT Store IO) ) a
+type GenM a = (ReaderT Env (StateT Store IO) ) a
 
 runCompiler :: (Compilable program) => program -> IO String
 runCompiler program = do
@@ -20,7 +20,7 @@ runCompiler program = do
     return $ show store
 
 class Compilable f  where
-    compile :: f -> CM ()
+    compile :: f -> GenM ()
 
 data Env = Env {
     vars :: Map.Map Ident LLVMVariable
@@ -64,20 +64,25 @@ data LLVMBlock = LLVMBlock {
 data BinOp = AddBinOp AddOp | MulBinOp MulOp | RelBinOp RelOp | AndOp | OrOp
 data UnOp = NotOp
 
-data LLVMInstruction = Branch Integer
+data LLVMInstruction = Alloca LLVMVariable
     | MemoryStore LLVMVariable LLVMVariable
+    | ReturnVoid
+    | Return LLVMVariable
+    | Branch Integer
+    | BranchConditional LLVMVariable Integer Integer deriving (Show)
 
 data LLVMAddress = LLVMAddressImmediate Integer
-    | LLVMAddressRegister Integer 
+    | LLVMAddressRegister Integer deriving (Show)
 
 data LLVMVariable = LLVMVariable {
     type' :: Type,
     address :: LLVMAddress,
-    blockLabel :: Integer
-}
+    blockLabel :: Integer,
+    ident :: Maybe Ident
+} deriving (Show)
 
-instance Show LLVMInstruction where
-    show (Branch labelNumber) = ""
+-- instance Show LLVMInstruction where
+--     show (Branch labelNumber) = ""
 
 instance Compilable Program where
     compile (Program topdefs) = do
@@ -86,19 +91,19 @@ instance Compilable Program where
         return ()
 
 
-fillFunctionsInformation :: TopDef -> CM ()
+fillFunctionsInformation :: TopDef -> GenM ()
 fillFunctionsInformation (FnDef type' ident args _) = do
     modify (\store -> store {
         functions = Map.insert ident (Fun type' (map (\(Arg t _) -> t) args)) (functions store)
     })
 
-emit :: LLVMInstruction -> CM ()
+emit :: LLVMInstruction -> GenM ()
 emit instruction = do
     store <- get
     let blockLabel = currentLabel store
     emitInSpecificBlock blockLabel instruction
 
-emitInSpecificBlock :: Integer -> LLVMInstruction -> CM ()
+emitInSpecificBlock :: Integer -> LLVMInstruction -> GenM ()
 emitInSpecificBlock blockLabel instruction = do
     store <- get
     let blockMap = fromJust $ Map.lookup (currentFunction store) (functionBlocks store)
@@ -114,7 +119,7 @@ emitInSpecificBlock blockLabel instruction = do
 
     liftIO $ putStrLn $ "emit"
 
-getNewLabel :: CM Integer
+getNewLabel :: GenM Integer
 getNewLabel = do
     modify (\store ->
         store { 
@@ -124,13 +129,13 @@ getNewLabel = do
     store <- get
     return $ labelCounter store
 
-compileFnDefs :: [TopDef] -> CM String
+compileFnDefs :: [TopDef] -> GenM String
 compileFnDefs [] = return ""
 compileFnDefs (x:xs) = do
     compileFnDef x
     compileFnDefs xs
 
-compileFnDef :: TopDef -> CM String
+compileFnDef :: TopDef -> GenM String
 compileFnDef (FnDef type' ident args block) = do
     modify (\store -> store {
         currentFunction = ident,
@@ -141,7 +146,7 @@ compileFnDef (FnDef type' ident args block) = do
     compileBlock block
     return ""
 
-compileBlock :: Block -> CM ()
+compileBlock :: Block -> GenM ()
 compileBlock (Block stmts) = do
     store <- get
     let previousBlockLabel = currentLabel store
@@ -152,7 +157,7 @@ compileBlock (Block stmts) = do
 
     return ()
 
-compileStmts :: [Stmt] -> CM Env
+compileStmts :: [Stmt] -> GenM Env
 compileStmts [] = ask
 compileStmts (stmt:stmts) = do
     env <- compileStmt stmt
@@ -173,7 +178,7 @@ compileStmts (stmt:stmts) = do
 --     | While Expr Stmt
 --     | SExp Expr
 --   deriving (Eq, Ord, Show, Read)
-compileStmt :: Stmt -> CM Env
+compileStmt :: Stmt -> GenM Env
 compileStmt (Empty) = ask
 compileStmt (BStmt block) = do
     compileBlock block
@@ -184,17 +189,98 @@ compileStmt (Ass ident expr) = do
     rhs <- compileExpr expr
     emit (MemoryStore rhs lhs)
     ask
+compileStmt (Incr ident) = compileStmt (Ass ident (EAdd (EVar ident) Plus (ELitInt 1)))
+compileStmt (Decr ident) = compileStmt (Ass ident (EAdd (EVar ident) Minus (ELitInt 1)))
+compileStmt (Ret expr) = do
+    val <- compileExpr expr
+    emit $ Return val
+    ask
+compileStmt (VRet) = do
+    emit ReturnVoid
+    ask
+compileStmt (SExp expr) = do
+    _ <- compileExpr expr
+    ask
+compileStmt (Cond expr stmt) = do
+    condition <- compileExpr expr
+    previousLabel <- gets currentLabel
+    ifTrueStmtsLabel <- getNewLabel
+    _ <- compileStmt stmt
+    afterIfBlock <- getNewLabel
+    emitInSpecificBlock previousLabel (BranchConditional condition ifTrueStmtsLabel afterIfBlock)
+    emitInSpecificBlock ifTrueStmtsLabel (Branch afterIfBlock)
+    ask
+compileStmt (CondElse expr stmtTrue stmtFalse) = do
+    condition <- compileExpr expr
+    previousLabel <- gets currentLabel
+    ifTrueStmtsLabel <- getNewLabel
+    _ <- compileStmt stmtTrue
+    ifFalseStmtsLabel <- getNewLabel
+    _ <- compileStmt stmtFalse
+    afterIfBlock <- getNewLabel
+    emitInSpecificBlock previousLabel (BranchConditional condition ifTrueStmtsLabel ifFalseStmtsLabel)
+    emitInSpecificBlock ifTrueStmtsLabel (Branch afterIfBlock)
+    emitInSpecificBlock ifFalseStmtsLabel (Branch afterIfBlock)
+    ask
 compileStmt stmt = error (show stmt ++ "not implemented")
 
-compileDecls :: Type -> [Item] -> CM Env
+compileDecls :: Type -> [Item] -> GenM Env
 compileDecls type' [] = ask
 compileDecls type' (item:items) = do
     env <- compileDecl type' item
     newEnv <- local (const env) (compileDecls type' items)
     return newEnv
 
-compileDecl :: Type -> Item -> CM Env
-compileDecl type' (NoInit ident) = error "aaa"
+compileDecl :: Type -> Item -> GenM Env
+compileDecl type' (NoInit ident) = do
+    rhs <- defaultVariable type' 
+    variableRegister <- getNextRegisterCounter
+    env <- ask
+    store <- get
+    let allocaVar = (LLVMVariable {
+        type' = type',
+        address = LLVMAddressRegister variableRegister,
+        blockLabel = currentLabel store,
+        ident = Just ident
+    })
+    emit (Alloca allocaVar)
+    emit (MemoryStore rhs allocaVar)
+    return $ env { vars = Map.insert ident allocaVar (vars env )}
+compileDecl type' (Init ident expr) = do
+    rhs <- compileExpr expr
+    variableRegister <- getNextRegisterCounter
+    env <- ask
+    store <- get
+    let allocaVar = (LLVMVariable {
+        type' = type',
+        address = LLVMAddressRegister variableRegister,
+        blockLabel = currentLabel store,
+        ident = Just ident
+    })
+    emit (Alloca allocaVar)
+    emit (MemoryStore rhs allocaVar)
+    return $ env { vars = Map.insert ident allocaVar (vars env )}
+
+defaultVariable :: Type -> GenM LLVMVariable
+defaultVariable Int = do
+    store <- get
+    return $ (LLVMVariable {
+        type' = Int,
+        address = LLVMAddressImmediate 0,
+        blockLabel = currentLabel store,
+        ident = Nothing
+    })
+defaultVariable Bool = do
+    store <- get
+    return $ (LLVMVariable {
+        type' = Int,
+        address = LLVMAddressImmediate 0,
+        blockLabel = currentLabel store,
+        ident = Nothing
+    })
+defaultVariable Str = error "defaultStr not implemented"
+
+
 -- data Expr
 --     = EVar Ident
 --     | ELitInt Integer
@@ -210,7 +296,7 @@ compileDecl type' (NoInit ident) = error "aaa"
 --     | EAnd Expr Expr
 --     | EOr Expr Expr
 --   deriving (Eq, Ord, Show, Read)
-compileExpr :: Expr -> CM LLVMVariable
+compileExpr :: Expr -> GenM LLVMVariable
 compileExpr (EVar ident) = do
     varsMap <- asks vars
     let var = fromJust $ Map.lookup ident varsMap
@@ -222,12 +308,13 @@ compileExpr (ELitInt i) = do
     return LLVMVariable {
         type' = Int,
         address = LLVMAddressImmediate i,
-        blockLabel = blockLabel
+        blockLabel = blockLabel,
+        ident = Nothing
     }
 
 compileExpr expr = error "not implemented"
 
-getNextRegisterCounter :: CM Integer
+getNextRegisterCounter :: GenM Integer
 getNextRegisterCounter = do
     modify (\store ->
         store { 
@@ -236,13 +323,13 @@ getNextRegisterCounter = do
     store <- get
     return $ registerCounter store
 
-getLoc :: Ident -> CM LLVMAddress
+getLoc :: Ident -> GenM LLVMAddress
 getLoc ident = do
     varsMap <- asks vars
     let var = fromJust $ Map.lookup ident varsMap
     return $ address var
 
-getVar :: Ident -> CM LLVMVariable
+getVar :: Ident -> GenM LLVMVariable
 getVar ident = do
     varsMap <- asks vars
     return $ fromJust $ Map.lookup ident varsMap
