@@ -36,7 +36,8 @@ data Store = Store {
     functions :: Map.Map Ident Type,
     labelCounter :: Integer,
     registerCounter :: Integer,
-    functionBlocks :: Map.Map Ident BlockMap
+    functionBlocks :: Map.Map Ident BlockMap,
+    stringsMap :: Map.Map String Integer
 } deriving (Show)
 
 initStore = Store {
@@ -66,12 +67,14 @@ data UnOp = NotOp
 
 data LLVMInstruction = Alloca LLVMVariable
     | MemoryStore LLVMVariable LLVMVariable
+    | Load LLVMVariable LLVMVariable
     | ReturnVoid
     | Return LLVMVariable
     | Branch Integer
     | BranchConditional LLVMVariable Integer Integer deriving (Show)
 
 data LLVMAddress = LLVMAddressImmediate Integer
+    | LLVMAddressString String
     | LLVMAddressRegister Integer deriving (Show)
 
 data LLVMVariable = LLVMVariable {
@@ -163,21 +166,6 @@ compileStmts (stmt:stmts) = do
     env <- compileStmt stmt
     local (const env) (compileStmts stmts)
 
-
---data Stmt
---     = Empty
---     | BStmt Block
---     | Decl Type [Item]
---     | Ass Ident Expr
---     | Incr Ident
---     | Decr Ident
---     | Ret Expr
---     | VRet
---     | Cond Expr Stmt
---     | CondElse Expr Stmt Stmt
---     | While Expr Stmt
---     | SExp Expr
---   deriving (Eq, Ord, Show, Read)
 compileStmt :: Stmt -> GenM Env
 compileStmt (Empty) = ask
 compileStmt (BStmt block) = do
@@ -222,7 +210,17 @@ compileStmt (CondElse expr stmtTrue stmtFalse) = do
     emitInSpecificBlock ifTrueStmtsLabel (Branch afterIfBlock)
     emitInSpecificBlock ifFalseStmtsLabel (Branch afterIfBlock)
     ask
-compileStmt stmt = error (show stmt ++ "not implemented")
+compileStmt (While expr stmt) = do
+    preConditionLabel <- gets currentLabel
+    conditionLabel <- getNewLabel
+    emitInSpecificBlock preConditionLabel (Branch conditionLabel)
+    condition <- compileExpr expr
+    ifTrueBodyLabel <- getNewLabel
+    _ <- compileStmt stmt
+    emit (Branch conditionLabel)
+    afterWhileLabel <- getNewLabel
+    emitInSpecificBlock conditionLabel (BranchConditional condition ifTrueBodyLabel afterWhileLabel)
+    ask
 
 compileDecls :: Type -> [Item] -> GenM Env
 compileDecls type' [] = ask
@@ -298,10 +296,18 @@ defaultVariable Str = error "defaultStr not implemented"
 --   deriving (Eq, Ord, Show, Read)
 compileExpr :: Expr -> GenM LLVMVariable
 compileExpr (EVar ident) = do
+    store <- get
     varsMap <- asks vars
     let var = fromJust $ Map.lookup ident varsMap
-    error "aa"
-
+    newRegisterNumber <- getNextRegisterCounter
+    let registerVar = (LLVMVariable {
+        type' = type' var,
+        address = LLVMAddressRegister newRegisterNumber,
+        blockLabel = currentLabel store,
+        ident = Just ident
+    })
+    emit (Load registerVar var)
+    return registerVar
 
 compileExpr (ELitInt i) = do
     blockLabel <- gets currentLabel
