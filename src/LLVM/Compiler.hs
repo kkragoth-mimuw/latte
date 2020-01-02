@@ -8,6 +8,7 @@ import           Control.Monad.State
 import           Control.Monad.Writer
 
 import qualified Data.Map as Map
+import Data.Maybe (fromJust)
 
 import AbsLatte 
 
@@ -30,11 +31,11 @@ initEnv = Env {
 
 data Store = Store {
     currentFunction :: Ident,
-    currentBlockNumber :: Integer,
+    currentLabel :: Integer,
     functions :: Map.Map Ident Type,
     labelCounter :: Integer,
     counter :: Integer,
-    functionBlocks :: Map.Map Ident FunctionBlocks
+    functionBlocks :: Map.Map Ident BlockMap
 } deriving (Show)
 
 initStore = Store {
@@ -43,14 +44,16 @@ initStore = Store {
     counter = 0
 }
 
-data FunctionBlocks = FunctionBlocks {
-    initialFunctionBlock :: LLVMBlock,
-    blocks :: [LLVMBlock]
-} deriving (Show)
+type BlockMap = Map.Map Integer LLVMBlock
+
+-- data FunctionBlocks = FunctionBlocks {
+--     -- initialFunctionBlock :: LLVMBlock,
+--     blocks :: [LLVMBlock]
+-- } deriving (Show)
 
 data LLVMBlock = LLVMBlock {
     label :: Integer,
-    code :: LLVMInstruction
+    code :: [LLVMInstruction]
 } deriving (Show)
 
 
@@ -58,7 +61,10 @@ data BinOp = AddBinOp AddOp | MulBinOp MulOp | RelBinOp RelOp | AndOp | OrOp
 data UnOp = NotOp
 
 data LLVMInstruction = 
-    Branch String
+    Branch Integer
+
+instance Show LLVMInstruction where
+    show (Branch labelNumber) = ""
 
 instance Compilable Program where
     compile (Program topdefs) = do
@@ -74,6 +80,36 @@ fillFunctionsInformation (FnDef type' ident args _) = do
         functions = Map.insert ident (Fun type' (map (\(Arg t _) -> t) args)) (functions store)
     })
 
+emit :: LLVMInstruction -> CM ()
+emit instruction = do
+    store <- get
+    let blockLabel = currentLabel store
+    emitInSpecificBlock blockLabel instruction
+
+emitInSpecificBlock :: Integer -> LLVMInstruction -> CM ()
+emitInSpecificBlock blockLabel instruction = do
+    store <- get
+    let blockMap = fromJust $ Map.lookup (currentFunction store) (functionBlocks store)
+    case Map.lookup blockLabel (blockMap) of
+        Just block -> let newMap = Map.insert blockLabel (LLVMBlock { label = label block, code = (code block) ++ [instruction]}) (blockMap) in
+            modify (\store -> store {
+                functionBlocks = Map.insert (currentFunction store) (newMap) (functionBlocks store)
+            })
+        Nothing -> let newMap = Map.insert blockLabel (LLVMBlock { label = blockLabel, code = [instruction]}) (blockMap) in
+            modify (\store -> store {
+                functionBlocks = Map.insert (currentFunction store) (newMap) (functionBlocks store)
+            })
+
+createNewBlockLabel :: CM Integer
+createNewBlockLabel = do
+    modify (\store ->
+        store { 
+            labelCounter = (labelCounter store) + 1,
+            currentLabel = (labelCounter store) + 1
+    })
+    store <- get
+    return $ labelCounter store
+
 compileFnDefs :: [TopDef] -> CM String
 compileFnDefs [] = return ""
 compileFnDefs (x:xs) = do
@@ -84,7 +120,7 @@ compileFnDef :: TopDef -> CM String
 compileFnDef (FnDef type' ident args block) = do
     modify (\store -> store {
         currentFunction = ident,
-        currentBlockNumber = 0,
+        currentLabel = 0,
         labelCounter = 0
     })
     compileBlock block
@@ -92,5 +128,22 @@ compileFnDef (FnDef type' ident args block) = do
 
 compileBlock :: Block -> CM ()
 compileBlock (Block stmts) = do
-    num <- get currentBlockNumber
+    store <- get
+    let previousBlock = currentLabel store
+
+    newBlockLabel <- createNewBlockLabel
+
     return
+
+compileStmts :: [Stmt] -> CM Env
+compileStmts [] = ask
+compileStmts (stmt:stmts) = do
+    env <- compileStmt stmt
+    local (const env) (compileStmts stmts)
+
+compileStmt :: Stmt -> CM Env
+compileStmt (Empty) = ask
+compileStmt (BStmt block) = do
+    compileBlock block
+    ask
+
