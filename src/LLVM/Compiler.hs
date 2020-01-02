@@ -106,7 +106,7 @@ createNewBlockLabel = do
         store { 
             labelCounter = (labelCounter store) + 1,
             currentLabel = (labelCounter store) + 1
-    })
+        })
     store <- get
     return $ labelCounter store
 
@@ -129,11 +129,13 @@ compileFnDef (FnDef type' ident args block) = do
 compileBlock :: Block -> CM ()
 compileBlock (Block stmts) = do
     store <- get
-    let previousBlock = currentLabel store
-
+    let previousBlockLabel = currentLabel store
     newBlockLabel <- createNewBlockLabel
 
-    return
+    emitInSpecificBlock previousBlockLabel (Branch newBlockLabel)
+    compileStmts stmts
+
+    return ()
 
 compileStmts :: [Stmt] -> CM Env
 compileStmts [] = ask
@@ -141,9 +143,26 @@ compileStmts (stmt:stmts) = do
     env <- compileStmt stmt
     local (const env) (compileStmts stmts)
 
+
+--data Stmt
+--     = Empty
+--     | BStmt Block
+--     | Decl Type [Item]
+--     | Ass Ident Expr
+--     | Incr Ident
+--     | Decr Ident
+--     | Ret Expr
+--     | VRet
+--     | Cond Expr Stmt
+--     | CondElse Expr Stmt Stmt
+--     | While Expr Stmt
+--     | SExp Expr
+--   deriving (Eq, Ord, Show, Read)
 compileStmt :: Stmt -> CM Env
 compileStmt (Empty) = ask
 compileStmt (BStmt block) = do
     compileBlock block
     ask
 
+compileExpr :: Expr -> CM ()
+compileExpr expr = error "not implemented"
