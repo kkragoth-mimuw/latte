@@ -72,6 +72,8 @@ data LLVMInstruction = Alloca LLVMVariable
     | ReturnVoid
     | Return LLVMVariable
     | Branch Integer
+    | Call
+    | CallVoid
     | BranchConditional LLVMVariable Integer Integer deriving (Show)
 
 data LLVMAddress = LLVMAddressImmediate Integer
@@ -333,6 +335,8 @@ compileExpr(ELitFalse) = do
         blockLabel = blockLabel,
         ident = Nothing
     }
+compileExpr (EApp ident exprs) = error "not implemented"
+
 compileExpr expr = error "not implemented"
 
 getNextRegisterCounter :: GenM Integer

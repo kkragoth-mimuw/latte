@@ -35,10 +35,14 @@ runFile v p f = putStrLn f >> readFile f >>= run v p
 run :: Verbosity -> ParseFun -> String -> IO ()
 run _ _ [] = exitSuccess
 run v p s = let ts = myLLexer s in case p ts of
-           Bad s    -> do putStrLn "\nParse failed...\n"
+           Bad s    -> do putStrLn "ERROR\n"
+                          putStrLn "\nParse failed...\n"
                           exitFailure
            Ok  tree -> case runTypecheck initTCEnv tree of
-                            Left error ->  pprintTypecheckerErrorMsg error
+                            Left error -> do
+                              putStrLn "ERROR\n"
+                              pprintTypecheckerErrorMsg error
+                              exitFailure
                             Right _ -> do
                                       putStrLn "OK"
                                       showTree v tree
