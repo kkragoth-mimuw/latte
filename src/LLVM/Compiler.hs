@@ -42,7 +42,8 @@ data Store = Store {
     labelCounter :: Integer,
     registerCounter :: Integer,
     functionBlocks :: Map.Map Ident BlockMap,
-    stringsMap :: Map.Map String Integer
+    stringsMap :: Map.Map String Integer,
+    initBlock :: Integer
 } deriving (Show)
 
 initStore = Store {
@@ -52,7 +53,8 @@ initStore = Store {
     labelCounter = 0,
     registerCounter = 0,
     functionBlocks = Map.empty,
-    stringsMap = Map.empty
+    stringsMap = Map.empty,
+    initBlock = 0
 }
 
 type BlockMap = Map.Map Integer LLVMBlock
@@ -147,7 +149,8 @@ compileFnDef (FnDef type' ident args block) = do
         currentFunction = ident,
         currentLabel = 0,
         labelCounter = 0,
-        functionBlocks = Map.insert ident Map.empty (functionBlocks store)
+        functionBlocks = Map.insert ident (Map.fromList [(0, (LLVMBlock { label = 0, code = [], inEdges = [], outEdges = []} ))]) (functionBlocks store),
+        initBlock = 1
     })
 
     -- TODO: prepare args
@@ -186,11 +189,21 @@ prepareArg (Arg type' ident) = do
 compileBlock :: Block -> GenM ()
 compileBlock (Block stmts) = do
     store <- get
-    let previousBlockLabel = currentLabel store
-    newBlockLabel <- getNewLabel
+    let isInitBlock = initBlock store
 
-    emitInSpecificBlock previousBlockLabel (Branch newBlockLabel)
-    compileStmts stmts
+    modify (\store -> store { initBlock = 1 })
+
+    let currentBlock = fromJust $ Map.lookup (currentLabel store) (fromJust $ Map.lookup (currentFunction store) (functionBlocks store))
+    let codeLen = length (code currentBlock)
+
+    if (codeLen == 0 || isInitBlock == 1) then
+        compileStmts stmts
+    else do
+        let previousBlockLabel = currentLabel store
+        newBlockLabel <- getNewLabel
+
+        emitInSpecificBlock previousBlockLabel (Branch newBlockLabel)
+        compileStmts stmts
 
     return ()
 
