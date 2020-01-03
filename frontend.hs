@@ -67,12 +67,16 @@ data TypecheckError = TCInvalidTypeExpectedType Type Type
                     | TCNotLValue
                     | TCRedeclaration Ident
                     | TCReturn
+                    | TCMainInvalidArgs
+                    | TCMainInvalidReturnType
                     | TCDebug String
 
 instance Show TypecheckError where
     show (TCInvalidTypeExpectedType type' allowedType)   = printf "Invalid type: %s. Expected: %s" (prettyShowType type') (prettyShowType allowedType)
     show (TCInvalidTypeExpectedTypes type' allowedTypes) = printf "Invalid type: %s. Expected %s" (prettyShowType type') (intercalate " or " (map prettyShowType allowedTypes))
     show (TCRedeclaration (Ident ident))                 = printf "Tried to redeclare: %s" (show ident)
+    show (TCMainInvalidArgs)                             = "Main shouldn't take any arguments!"
+    show (TCMainInvalidReturnType)                       = "Main should only return int"
     show TCNotLValue                                     = "Not lvalue"
     show TCInvalidNumberOfArguments                      = "Passed invalid number of arguments to function"
     show (TCDebug str)                                   = printf "%s" (show str)
@@ -123,7 +127,19 @@ class Typecheckable f where
     typecheckProgram :: f -> TCM ()
 
 instance Typecheckable Program where
-    typecheckProgram (Program topdefs) = typecheckTopDefs topdefs >> return ()
+    typecheckProgram (Program topdefs) = do
+        env <- typecheckTopDefs topdefs
+        local (const env) typecheckMainBlock
+        return ()
+
+typecheckMainBlock :: TCM ()
+typecheckMainBlock = do
+    env <- ask
+
+    case Map.lookup (Ident "main") (typesMap env) of
+        Nothing -> return ()
+        Just (Void, _) -> return ()
+        _ -> throwError $ initTypecheckError $ TCMainInvalidReturnType
 
 typecheckTopDefs :: [TopDef] -> TCM TCEnv
 typecheckTopDefs [] = ask
@@ -134,15 +150,19 @@ typecheckTopDefs (x:xs) = do
 typecheckTopDef :: TopDef -> TCM TCEnv
 typecheckTopDef (FnDef fnType fnName args (Block stmts)) = do 
     checkIfIsAlreadyDeclaredATCurrentLevel fnName
-    env <- ask
-    let funcType = Fun fnType (Prelude.map argToType args)
-    let newTypesMap = Map.insert fnName (funcType, level env) (typesMap env)
-    let newEnv = env { typesMap = newTypesMap }
-    let newEnvForFunction = Prelude.foldr updateEnv newEnv args
+    let (Ident name) = fnName
+    if (name == "main" && length args /= 0) then
+        throwError $ initTypecheckError $ TCMainInvalidArgs
+    else do
+        env <- ask
+        let funcType = Fun fnType (Prelude.map argToType args)
+        let newTypesMap = Map.insert fnName (funcType, level env) (typesMap env)
+        let newEnv = env { typesMap = newTypesMap }
+        let newEnvForFunction = Prelude.foldr updateEnv newEnv args
 
-    local (const $ indicateReturnType (increaseLevel newEnvForFunction) fnType) (typecheckStmts stmts)
+        local (const $ indicateReturnType (increaseLevel newEnvForFunction) fnType) (typecheckStmts stmts)
 
-    return newEnv
+        return newEnv
 
 
 argToType :: Arg -> Type
