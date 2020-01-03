@@ -604,4 +604,4 @@ showBlocks [] = ""
 showBlocks (x:xs) = showBlock x ++ showBlocks xs
 
 showBlock :: LLVMBlock -> String
-showBlock block = printf("; <label>:%s:\n\t%s\n") (show $ label block) (intercalate "\n\t" (map show (code block)))
+showBlock block = printf("; <label>:%s\n\t%s\n") (show $ label block) (intercalate "\n\t" (map show (code block)))
