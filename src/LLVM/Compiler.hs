@@ -249,9 +249,17 @@ compileStmt (CondElse expr stmtTrue stmtFalse) = do
     condition <- compileExpr expr
     previousLabel <- gets currentLabel
     ifTrueStmtsLabel <- getNewLabel
-    _ <- compileStmt stmtTrue
+    case stmtTrue of
+        (BStmt (Block stmts)) -> do
+            compileStmts stmts
+        _ -> do
+            compileStmt stmtTrue
     ifFalseStmtsLabel <- getNewLabel
-    _ <- compileStmt stmtFalse
+    case stmtFalse of
+        (BStmt (Block stmts)) -> do
+            compileStmts stmts
+        _ -> do
+            compileStmt stmtFalse
     afterIfBlock <- getNewLabel
     emitInSpecificBlock previousLabel (BranchConditional condition ifTrueStmtsLabel ifFalseStmtsLabel)
     emitInSpecificBlock ifTrueStmtsLabel (Branch afterIfBlock)

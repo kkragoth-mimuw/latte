@@ -8,4 +8,5 @@ int main() {
 	else {
 		c = 1234;
 	}
+	c++;
 }
