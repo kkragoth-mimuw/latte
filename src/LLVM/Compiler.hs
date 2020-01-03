@@ -17,12 +17,19 @@ import Text.Printf
 
 import AbsLatte 
 
-type GenM a = (ReaderT Env (StateT Store IO) ) a
+type GenM a = (ExceptT CompilationError (ReaderT Env (StateT Store IO) )) a
 
-runCompiler :: (Compilable program) => program -> IO String
+data CompilationError = CompilationErrorFunctionHasNoExplicitReturn Ident
+
+instance Show CompilationError where
+    show (CompilationErrorFunctionHasNoExplicitReturn (Ident functionIdent)) = printf "Function %s has missing return!" functionIdent
+
+runCompiler :: (Compilable program) => program -> IO (Either String String)
 runCompiler program = do
-    (res, store) <- runStateT (runReaderT (compile program) initEnv) initStore
-    return res
+    runInfo <- runStateT (runReaderT (runExceptT (compile program)) initEnv) initStore
+    case runInfo of 
+        (Left compilationError, _) -> return $ Left (show compilationError)
+        (Right res, _) -> return $ Right res
 
 class Compilable f  where
     compile :: f -> GenM String
@@ -157,12 +164,17 @@ compileFnDef (FnDef type' ident args block) = do
     compileBlock block
 
     -- TODO OPTIMIZE block
+    store <- get
+    optimizeAndCheckLLVMBlocks (Map.elems $ fromJust $ Map.lookup ident (functionBlocks store))
 
     store <- get
     let functionDef = printf ("declare %s @%s(%s) {\n") (showTypeInLLVM type') (showIdent ident) (showArgs args)
     let blockCode = showBlocks (Map.elems $ fromJust $ Map.lookup (ident) (functionBlocks store))
 
-    return (functionDef ++ blockCode)
+    return (functionDef ++ blockCode ++ "}")
+
+optimizeAndCheckLLVMBlocks :: [LLVMBlock] -> GenM ()
+optimizeAndCheckLLVMBlocks blocks = error "no blocks" 
 
 prepareArgs :: [Arg] -> GenM Env
 prepareArgs [] = ask

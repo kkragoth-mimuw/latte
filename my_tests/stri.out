@@ -1,0 +1,9 @@
+OK
+
+[Abstract Syntax]
+
+Program [FnDef Int (Ident "main") [] (Block [Decl Str [Init (Ident "s") (EString "hello wolsdsa")]])]
+declare i32 @main() {
+; <label>:0:
+	Alloca (LLVMVariable {type' = Str, address = LLVMAddressRegister 1, blockLabel = 0, ident = Just (Ident "s")})
+	MemoryStore (LLVMVariable {type' = Str, address = LLVMAddressString "hello wolsdsa" 1, blockLabel = 0, ident = Nothing}) (LLVMVariable {type' = Str, address = LLVMAddressRegister 1, blockLabel = 0, ident = Just (Ident "s")})

@@ -44,11 +44,13 @@ run v p s = let ts = myLLexer s in case p ts of
                               pprintTypecheckerErrorMsg error
                               exitFailure
                             Right _ -> do
-                                      putStrLn "OK"
-                                      showTree v tree
-                                      
-                                      result <- runCompiler tree
-                                      putStr ( result)
+                                      compilerInfo <- runCompiler tree
+                                      case compilerInfo of
+                                        Left error -> do
+                                          putStrLn "ERROR\n"
+                                          putStrLn error
+                                        Right result -> do
+                                          putStr (result)
                                      
 
 
