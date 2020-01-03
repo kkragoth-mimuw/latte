@@ -1,5 +1,8 @@
 {-# LANGUAGE LambdaCase #-}
 
+-- https://buildmedia.readthedocs.org/media/pdf/mapping-high-level-constructs-to-llvm-ir/latest/mapping-high-level-constructs-to-llvm-ir.pdf
+-- /usr/local/opt/llvm/bin
+
 module LLVM.Compiler where
 
 import           Control.Monad.Except
@@ -52,14 +55,11 @@ initStore = Store {
 
 type BlockMap = Map.Map Integer LLVMBlock
 
--- data FunctionBlocks = FunctionBlocks {
---     -- initialFunctionBlock :: LLVMBlock,
---     blocks :: [LLVMBlock]
--- } deriving (Show)
-
 data LLVMBlock = LLVMBlock {
     label :: Integer,
-    code :: [LLVMInstruction]
+    code :: [LLVMInstruction],
+    inEdges :: [Integer],
+    outEdges :: [Integer]
 } deriving (Show)
 
 
@@ -72,12 +72,13 @@ data LLVMInstruction = Alloca LLVMVariable
     | ReturnVoid
     | Return LLVMVariable
     | Branch Integer
-    | Call
-    | CallVoid
+    | Call LLVMVariable Ident [LLVMVariable]
+    | CallVoid Ident [LLVMVariable]
     | BranchConditional LLVMVariable Integer Integer deriving (Show)
 
-data LLVMAddress = LLVMAddressImmediate Integer
-    | LLVMAddressString String
+data LLVMAddress = LLVMAddressVoid
+    | LLVMAddressImmediate Integer
+    | LLVMAddressString String Integer
     | LLVMAddressRegister Integer deriving (Show)
 
 data LLVMVariable = LLVMVariable {
@@ -87,8 +88,6 @@ data LLVMVariable = LLVMVariable {
     ident :: Maybe Ident
 } deriving (Show)
 
--- instance Show LLVMInstruction where
---     show (Branch labelNumber) = ""
 
 instance Compilable Program where
     compile (Program topdefs) = do
@@ -335,7 +334,53 @@ compileExpr(ELitFalse) = do
         blockLabel = blockLabel,
         ident = Nothing
     }
-compileExpr (EApp ident exprs) = error "not implemented"
+compileExpr (EApp ident exprs) = do
+    args <- mapM compileExpr exprs
+    store <- get
+    let func = fromJust $ Map.lookup ident (functions store)
+    case func of
+        (Fun Void _) -> do
+            emit (CallVoid ident args)
+            return (LLVMVariable {
+                type' = Void,
+                address = LLVMAddressVoid,
+                blockLabel = (currentLabel store),
+                ident = Nothing
+            })
+        (Fun type' _) -> do
+            newRegister <- getNextRegisterCounter
+            let result = (LLVMVariable {
+                type' = type',
+                address = LLVMAddressRegister newRegister,
+                blockLabel = (currentLabel store),
+                ident = Nothing
+            })
+            emit (Call result ident args)
+            return result
+compileExpr (EString s) = do
+    store <- get
+    case Map.lookup s (stringsMap store) of
+        Just i -> do
+            return (LLVMVariable {
+                type' = Str,
+                address = LLVMAddressString s i,
+                blockLabel = currentLabel store,
+                ident = Nothing
+            })
+        Nothing -> do
+            let newLength = toInteger $ (Map.size (stringsMap store)) + 1
+            modify (\store -> (store {
+                stringsMap = Map.insert s newLength (stringsMap store)
+            }))
+            return (LLVMVariable {
+                type' = Str,
+                address = LLVMAddressString s newLength,
+                blockLabel = currentLabel store,
+                ident = Nothing
+            })
+compileExpr (Neg expr) = compileExpr (EAdd (ELitInt 0) Minus expr)
+compileExpr (Not expr) = error "no nope"
+
 
 compileExpr expr = error "not implemented"
 
