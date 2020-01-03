@@ -240,7 +240,11 @@ compileStmt (Cond expr stmt) = do
     condition <- compileExpr expr
     previousLabel <- gets currentLabel
     ifTrueStmtsLabel <- getNewLabel
-    _ <- compileStmt stmt
+    case stmt of
+        (BStmt (Block stmts)) -> do
+            compileStmts stmts
+        _ -> do
+            compileStmt stmt
     afterIfBlock <- getNewLabel
     emitInSpecificBlock previousLabel (BranchConditional condition ifTrueStmtsLabel afterIfBlock)
     emitInSpecificBlock ifTrueStmtsLabel (Branch afterIfBlock)
@@ -271,7 +275,11 @@ compileStmt (While expr stmt) = do
     emitInSpecificBlock preConditionLabel (Branch conditionLabel)
     condition <- compileExpr expr
     ifTrueBodyLabel <- getNewLabel
-    _ <- compileStmt stmt
+    case stmt of
+        (BStmt (Block stmts)) -> do
+            compileStmts stmts
+        _ -> do
+            compileStmt stmt
     emit (Branch conditionLabel)
     afterWhileLabel <- getNewLabel
     emitInSpecificBlock conditionLabel (BranchConditional condition ifTrueBodyLabel afterWhileLabel)

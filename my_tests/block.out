@@ -1,0 +1,8 @@
+OK
+
+[Abstract Syntax]
+
+Program [FnDef Int (Ident "main") [] (Block [BStmt (Block [])])]
+declare i32 @main() {
+; <label>:0:
+	
