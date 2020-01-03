@@ -138,7 +138,7 @@ typecheckMainBlock = do
 
     case Map.lookup (Ident "main") (typesMap env) of
         Nothing -> return ()
-        Just (Void, _) -> return ()
+        Just ((Fun Int _), _) -> return ()
         _ -> throwError $ initTypecheckError $ TCMainInvalidReturnType
 
 typecheckTopDefs :: [TopDef] -> TCM TCEnv

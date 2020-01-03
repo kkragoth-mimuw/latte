@@ -1,3 +1,7 @@
+int a(int a) {
+	return a;
+}
+
 int main() {
 	int i = 0;
 	int j = 1;
@@ -5,5 +9,6 @@ int main() {
 	if (i < j) {
 		return 5;
 	}
+	int c = a(4);
 	return 0;
 }
