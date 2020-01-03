@@ -63,10 +63,10 @@ data LLVMBlock = LLVMBlock {
 } deriving (Show)
 
 
-data BinOp = AddBinOp AddOp | MulBinOp MulOp | RelBinOp RelOp | AndOp | OrOp
-data UnOp = NotOp
+data Op = AddBinOp AddOp | MulBinOp MulOp | RelBinOp RelOp | AndOp | OrOp | Xor deriving (Show)
 
 data LLVMInstruction = Alloca LLVMVariable
+    | Operation LLVMVariable Op LLVMVariable LLVMVariable
     | MemoryStore LLVMVariable LLVMVariable
     | Load LLVMVariable LLVMVariable
     | ReturnVoid
@@ -379,7 +379,19 @@ compileExpr (EString s) = do
                 ident = Nothing
             })
 compileExpr (Neg expr) = compileExpr (EAdd (ELitInt 0) Minus expr)
-compileExpr (Not expr) = error "no nope"
+compileExpr (Not expr) = do
+    store <- get
+    var <- compileExpr expr
+    trueVar <- compileExpr (ELitTrue)
+    nextRegister <- getNextRegisterCounter
+    let result = (LLVMVariable {
+        type' = Bool,
+        address = LLVMAddressRegister nextRegister,
+        blockLabel = currentLabel store,
+        ident = Nothing
+    })
+    emit (Operation trueVar Xor var result)
+    return result
 
 
 compileExpr expr = error "not implemented"
