@@ -392,7 +392,7 @@ compileExpr (Not expr) = do
     })
     emit (Operation trueVar Xor var result)
     return result
-compileExpr (EMul expr1 op expr2) = do
+compileExpr (EMul expr1 mulOp expr2) = do
     store <- get
     left <- compileExpr expr1
     right <- compileExpr expr2
@@ -403,9 +403,32 @@ compileExpr (EMul expr1 op expr2) = do
         blockLabel = currentLabel store,
         ident = Nothing
     })
-    emit (Operation left (MulBinOp op) right result)
+    emit (Operation left (MulBinOp mulOp) right result)
     return result
-
+compileExpr (EAdd expr1 addOp expr2) = do
+    store <- get
+    left <- compileExpr expr1
+    right <- compileExpr expr2
+    nextRegister <- getNextRegisterCounter
+    case (type' left) of
+        Int -> do
+            let result = (LLVMVariable {
+                type' = Int,
+                address = LLVMAddressRegister nextRegister,
+                blockLabel = currentLabel store,
+                ident = Nothing
+            })
+            emit (Operation left (AddBinOp addOp) right result)
+            return result
+        Str -> do
+            let result = (LLVMVariable {
+                type' = Str,
+                address = LLVMAddressRegister nextRegister,
+                blockLabel = currentLabel store,
+                ident = Nothing
+            })
+            emit (Call result (Ident "__concatStrings") [left, right])
+            return result
 
 
 compileExpr expr = error "not implemented"
