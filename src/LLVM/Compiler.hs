@@ -392,6 +392,20 @@ compileExpr (Not expr) = do
     })
     emit (Operation trueVar Xor var result)
     return result
+compileExpr (EMul expr1 op expr2) = do
+    store <- get
+    left <- compileExpr expr1
+    right <- compileExpr expr2
+    nextRegister <- getNextRegisterCounter
+    let result = (LLVMVariable {
+        type' = Int,
+        address = LLVMAddressRegister nextRegister,
+        blockLabel = currentLabel store,
+        ident = Nothing
+    })
+    emit (Operation left (MulBinOp op) right result)
+    return result
+
 
 
 compileExpr expr = error "not implemented"
