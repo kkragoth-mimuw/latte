@@ -12,6 +12,7 @@ import           Control.Monad.Writer
 
 import qualified Data.Map as Map
 import Data.Maybe (fromJust)
+import Data.List (intercalate)
 import Text.Printf
 
 import AbsLatte 
@@ -21,7 +22,7 @@ type GenM a = (ReaderT Env (StateT Store IO) ) a
 runCompiler :: (Compilable program) => program -> IO String
 runCompiler program = do
     (res, store) <- runStateT (runReaderT (compile program) initEnv) initStore
-    return $ show res
+    return res
 
 class Compilable f  where
     compile :: f -> GenM String
@@ -148,13 +149,39 @@ compileFnDef (FnDef type' ident args block) = do
         labelCounter = 0,
         functionBlocks = Map.insert ident Map.empty (functionBlocks store)
     })
+
+    -- TODO: prepare args
     compileBlock block
 
     -- TODO OPTIMIZE block
 
+    store <- get
     let functionDef = printf ("declare %s @%s(%s) {\n") (showTypeInLLVM type') (showIdent ident) (showArgs args)
+    let blockCode = showBlocks (Map.elems $ fromJust $ Map.lookup (ident) (functionBlocks store))
 
-    return (functionDef)
+    return (functionDef ++ blockCode)
+
+prepareArgs :: [Arg] -> GenM Env
+prepareArgs [] = ask
+prepareArgs (x:xs) = do
+    env <- prepareArg x
+    newEnv <- local (const env) (prepareArgs xs)
+    return newEnv
+
+prepareArg :: Arg -> GenM Env
+prepareArg (Arg type' ident) = do
+    store <- get
+    env <- ask
+    newRegister <- getNextRegisterCounter
+    let result = (LLVMVariable {
+        type' = type',
+        address = LLVMAddressRegister newRegister,
+        blockLabel = (currentLabel store),
+        ident = Just ident
+    })
+    emit (Alloca result)
+    -- emit (MemoryStore )
+    return env
 
 compileBlock :: Block -> GenM ()
 compileBlock (Block stmts) = do
@@ -285,22 +312,6 @@ defaultVariable Bool = do
     })
 defaultVariable Str = error "defaultStr not implemented"
 
-
--- data Expr
---     = EVar Ident
---     | ELitInt Integer
---     | ELitTrue
---     | ELitFalse
---     | EApp Ident [Expr]
---     | EString String
---     | Neg Expr
---     | Not Expr
---     | EMul Expr MulOp Expr
---     | EAdd Expr AddOp Expr
---     | ERel Expr RelOp Expr
---     | EAnd Expr Expr
---     | EOr Expr Expr
---   deriving (Eq, Ord, Show, Read)
 compileExpr :: Expr -> GenM LLVMVariable
 compileExpr (EVar ident) = do
     store <- get
@@ -511,3 +522,10 @@ showArgs (x:xs) = (showArg x) ++ (showArgs xs)
 
 showArg :: Arg -> String
 showArg (Arg type' ident) = printf ("%s %%%s") (showTypeInLLVM type') (showIdent ident)
+
+showBlocks :: [LLVMBlock] -> String
+showBlocks [] = ""
+showBlocks (x:xs) = showBlock x ++ showBlocks xs
+
+showBlock :: LLVMBlock -> String
+showBlock block = printf("; <label>:%s:\n\t%s\n") (show $ label block) (intercalate "\n\t" (map show (code block)))

@@ -48,7 +48,7 @@ run v p s = let ts = myLLexer s in case p ts of
                                       showTree v tree
                                       
                                       result <- runCompiler tree
-                                      putStrLn result
+                                      putStr ( result)
                                      
 
 
