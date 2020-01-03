@@ -1,7 +1,7 @@
 {-# LANGUAGE LambdaCase #-}
 
--- https://buildmedia.readthedocs.org/media/pdf/mapping-high-level-constructs-to-llvm-ir/latest/mapping-high-level-constructs-to-llvm-ir.pdf
--- /usr/local/opt/llvm/bin
+-- TODO: https://buildmedia.readthedocs.org/media/pdf/mapping-high-level-constructs-to-llvm-ir/latest/mapping-high-level-constructs-to-llvm-ir.pdf
+-- on mac:  /usr/local/opt/llvm/bin
 
 module LLVM.Compiler where
 
@@ -12,6 +12,7 @@ import           Control.Monad.Writer
 
 import qualified Data.Map as Map
 import Data.Maybe (fromJust)
+import Text.Printf
 
 import AbsLatte 
 
@@ -19,11 +20,11 @@ type GenM a = (ReaderT Env (StateT Store IO) ) a
 
 runCompiler :: (Compilable program) => program -> IO String
 runCompiler program = do
-    (_, store) <- runStateT (runReaderT (compile program) initEnv) initStore
-    return $ show store
+    (res, store) <- runStateT (runReaderT (compile program) initEnv) initStore
+    return $ show res
 
 class Compilable f  where
-    compile :: f -> GenM ()
+    compile :: f -> GenM String
 
 data Env = Env {
     vars :: Map.Map Ident LLVMVariable
@@ -92,8 +93,8 @@ data LLVMVariable = LLVMVariable {
 instance Compilable Program where
     compile (Program topdefs) = do
         forM_ topdefs fillFunctionsInformation
-        compileFnDefs topdefs
-        return ()
+        result <- compileFnDefs topdefs
+        return result
 
 
 fillFunctionsInformation :: TopDef -> GenM ()
@@ -113,16 +114,14 @@ emitInSpecificBlock blockLabel instruction = do
     store <- get
     let blockMap = fromJust $ Map.lookup (currentFunction store) (functionBlocks store)
     case Map.lookup blockLabel (blockMap) of
-        Just block -> let newMap = Map.insert blockLabel (LLVMBlock { label = label block, code = (code block) ++ [instruction]}) (blockMap) in
+        Just block -> let newMap = Map.insert blockLabel (LLVMBlock { label = label block, code = (code block) ++ [instruction], inEdges = [], outEdges = []}) (blockMap) in
             modify (\store -> store {
                 functionBlocks = Map.insert (currentFunction store) (newMap) (functionBlocks store)
             })
-        Nothing -> let newMap = Map.insert blockLabel (LLVMBlock { label = blockLabel, code = [instruction]}) (blockMap) in
+        Nothing -> let newMap = Map.insert blockLabel (LLVMBlock { label = blockLabel, code = [instruction], inEdges = [], outEdges = []}) (blockMap) in
             modify (\store -> store {
                 functionBlocks = Map.insert (currentFunction store) (newMap) (functionBlocks store)
             })
-
-    liftIO $ putStrLn $ "emit"
 
 getNewLabel :: GenM Integer
 getNewLabel = do
@@ -137,8 +136,9 @@ getNewLabel = do
 compileFnDefs :: [TopDef] -> GenM String
 compileFnDefs [] = return ""
 compileFnDefs (x:xs) = do
-    compileFnDef x
-    compileFnDefs xs
+    result <- compileFnDef x
+    result2 <- compileFnDefs xs
+    return (result ++ result2)
 
 compileFnDef :: TopDef -> GenM String
 compileFnDef (FnDef type' ident args block) = do
@@ -149,7 +149,12 @@ compileFnDef (FnDef type' ident args block) = do
         functionBlocks = Map.insert ident Map.empty (functionBlocks store)
     })
     compileBlock block
-    return ""
+
+    -- TODO OPTIMIZE block
+
+    let functionDef = printf ("declare %s @%s(%s) {\n") (showTypeInLLVM type') (showIdent ident) (showArgs args)
+
+    return (functionDef)
 
 compileBlock :: Block -> GenM ()
 compileBlock (Block stmts) = do
@@ -469,8 +474,6 @@ compileExpr (EOr expr1 expr2) = do
     emit (Operation left (OrOp) right result)
     return result
 
-compileExpr expr = error "not implemented"
-
 getNextRegisterCounter :: GenM Integer
 getNextRegisterCounter = do
     modify (\store ->
@@ -490,3 +493,21 @@ getVar :: Ident -> GenM LLVMVariable
 getVar ident = do
     varsMap <- asks vars
     return $ fromJust $ Map.lookup ident varsMap
+
+-- show
+showTypeInLLVM :: Type -> String
+showTypeInLLVM Void = "void"
+showTypeInLLVM Int = "i32"
+showTypeInLLVM Str = "i8*"
+showTypeInLLVM Bool = "i1"
+showTypeInLLVM _ = ""
+
+showIdent :: Ident -> String
+showIdent (Ident s) = s
+
+showArgs :: [Arg] -> String
+showArgs [] = ""
+showArgs (x:xs) = (showArg x) ++ (showArgs xs)
+
+showArg :: Arg -> String
+showArg (Arg type' ident) = printf ("%s %%%s") (showTypeInLLVM type') (showIdent ident)
