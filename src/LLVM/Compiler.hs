@@ -429,7 +429,45 @@ compileExpr (EAdd expr1 addOp expr2) = do
             })
             emit (Call result (Ident "__concatStrings") [left, right])
             return result
-
+compileExpr (ERel expr1 relOp expr2) = do
+    store <- get
+    left <- compileExpr expr1
+    right <- compileExpr expr2
+    nextRegister <- getNextRegisterCounter
+    let result = (LLVMVariable {
+        type' = Int,
+        address = LLVMAddressRegister nextRegister,
+        blockLabel = currentLabel store,
+        ident = Nothing
+    })
+    emit (Operation left (RelBinOp relOp) right result)
+    return result
+compileExpr (EAnd expr1 expr2) = do
+    store <- get
+    left <- compileExpr expr1
+    right <- compileExpr expr2
+    nextRegister <- getNextRegisterCounter
+    let result = (LLVMVariable {
+        type' = Int,
+        address = LLVMAddressRegister nextRegister,
+        blockLabel = currentLabel store,
+        ident = Nothing
+    })
+    emit (Operation left (AndOp) right result)
+    return result
+compileExpr (EOr expr1 expr2) = do
+    store <- get
+    left <- compileExpr expr1
+    right <- compileExpr expr2
+    nextRegister <- getNextRegisterCounter
+    let result = (LLVMVariable {
+        type' = Int,
+        address = LLVMAddressRegister nextRegister,
+        blockLabel = currentLabel store,
+        ident = Nothing
+    })
+    emit (Operation left (OrOp) right result)
+    return result
 
 compileExpr expr = error "not implemented"
 
