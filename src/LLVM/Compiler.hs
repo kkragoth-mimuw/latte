@@ -164,14 +164,49 @@ compileFnDef (FnDef type' ident args block) = do
     compileBlock block
 
     -- TODO OPTIMIZE block
-    store <- get
-    optimizeAndCheckLLVMBlocks (Map.elems $ fromJust $ Map.lookup ident (functionBlocks store))
+    functionBlocksMap <- gets functionBlocks
+    let blockMap = fromJust $ Map.lookup ident functionBlocksMap
+    optimizedBlockMap <- optimizeBlockMapReturn blockMap
+    modify (\store -> (store {
+        functionBlocks = Map.insert ident (optimizedBlockMap) functionBlocksMap
+    }))
 
     store <- get
     let functionDef = printf ("declare %s @%s(%s) {\n") (showTypeInLLVM type') (showIdent ident) (showArgs args)
     let blockCode = showBlocks (Map.elems $ fromJust $ Map.lookup (ident) (functionBlocks store))
 
     return (functionDef ++ blockCode ++ "}")
+
+optimizeBlockMapReturn :: BlockMap -> GenM BlockMap
+optimizeBlockMapReturn blockMap = do
+    let blocks = Map.elems blockMap
+    optimizedBlocks <- mapM optimizeBlock blocks
+    let optimizedMap = foldr (\block -> \m -> (Map.insert (label block) (block) m)) Map.empty optimizedBlocks
+    return optimizedMap
+
+optimizeBlock :: LLVMBlock -> GenM LLVMBlock
+optimizeBlock block = do
+    store <- get
+
+    let newCode = codeUntilBranchOrReturn (code block)
+    
+    case (last newCode) of
+        ReturnVoid -> return $ block { code = newCode }
+        Return _ -> return $ block { code = newCode }
+        Branch _ -> return $ block { code = newCode }
+        BranchConditional _ _ _ -> return $ block { code = newCode }
+        _ -> throwError $ CompilationErrorFunctionHasNoExplicitReturn (currentFunction store)
+        
+    -- return $ block { code = newCode }
+
+codeUntilBranchOrReturn :: [LLVMInstruction] -> [LLVMInstruction]
+codeUntilBranchOrReturn [] = []
+codeUntilBranchOrReturn (x:xs) = case x of
+    ReturnVoid -> [x]
+    Return _ -> [x]
+    Branch _ -> [x]
+    BranchConditional _ _ _ -> [x]
+    _ -> [x] ++ codeUntilBranchOrReturn xs
 
 optimizeAndCheckLLVMBlocks :: [LLVMBlock] -> GenM ()
 optimizeAndCheckLLVMBlocks blocks = error "no blocks" 
