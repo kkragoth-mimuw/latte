@@ -657,11 +657,12 @@ compileExpr (EAnd expr1 expr2) = do
     middleLabelFollowUp <- getLabelFollowUp middleLabel
     emitInSpecificBlock middleLabelFollowUp (Branch endLabel)
 
+    blockLabel <- gets currentLabel
     nextRegister <- getNextRegisterCounter
     let result = (LLVMVariable {
         type' = LLVMType Bool,
         address = LLVMAddressRegister nextRegister,
-        blockLabel = currentLabel store,
+        blockLabel = blockLabel,
         ident = Nothing
     })
 
@@ -692,11 +693,12 @@ compileExpr (EOr expr1 expr2) = do
     middleLabelFollowUp <- getLabelFollowUp middleLabel
     emitInSpecificBlock middleLabelFollowUp (Branch endLabel)
 
+    blockLabel <- gets currentLabel
     nextRegister <- getNextRegisterCounter
     let result = (LLVMVariable {
         type' = LLVMType Bool,
         address = LLVMAddressRegister nextRegister,
-        blockLabel = currentLabel store,
+        blockLabel = blockLabel,
         ident = Nothing
     })
 
