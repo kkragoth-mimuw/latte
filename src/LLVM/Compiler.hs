@@ -1,11 +1,9 @@
 {-# LANGUAGE LambdaCase #-}
 
 -- TODO: https://buildmedia.readthedocs.org/media/pdf/mapping-high-level-constructs-to-llvm-ir/latest/mapping-high-level-constructs-to-llvm-ir.pdf
--- on mac:  /usr/local/opt/llvm/bin
+-- on mac:  /usr/local/opt/llvm/bin/llvm-as
 
 -- TODO:
--- ARGS
--- STRINGS
 -- AND / OR shortcuts
 -- PHI_OPTIMIZATIONS
 -- TESTING
@@ -88,11 +86,15 @@ data LLVMBlock = LLVMBlock {
 } deriving (Show)
 
 showStringsDeclarations :: Map.Map String Integer -> String
-showStringsDeclarations stringMap = ""
+showStringsDeclarations stringMap = intercalate ("\n") (
+        map (\(str, i) -> printf ("@s%s = private constant [%s x i8] c\"%s\\00\"") (show i) (show $ (length str) + 1) str)
+        (Map.toList stringMap)
+    ) ++ "\n\n"
 
 data Op = AddBinOp AddOp | MulBinOp MulOp | RelBinOp RelOp | AndOp | OrOp | XorOp deriving (Show)
 
 data LLVMInstruction = Alloca LLVMVariable
+    | BitcastString String Integer LLVMVariable
     | Operation LLVMVariable Op LLVMVariable LLVMVariable
     | MemoryStore LLVMVariable LLVMVariable
     | Load LLVMVariable LLVMVariable
@@ -106,6 +108,7 @@ data LLVMInstruction = Alloca LLVMVariable
 data LLVMAddress = LLVMAddressVoid
     | LLVMAddressImmediate Integer
     | LLVMAddressString String Integer
+    | LLVMAddressNamedRegister String
     | LLVMAddressRegister Integer deriving (Show)
 
 data LLVMType = LLVMType Type | LLVMTypePointer LLVMType deriving (Show)
@@ -179,16 +182,18 @@ compileFnDef (FnDef type' ident args block) = do
         initBlock = 1
     })
 
-    -- TODO: prepare args
-    compileBlock block
+    newEnv <- prepareArgs args
+ 
+    local (const newEnv) (compileBlock block)
 
-    -- TODO OPTIMIZE block
     functionBlocksMap <- gets functionBlocks
     let blockMap = fromJust $ Map.lookup ident functionBlocksMap
     optimizedBlockMap <- optimizeBlockMapReturn blockMap
     modify (\store -> (store {
         functionBlocks = Map.insert ident (optimizedBlockMap) functionBlocksMap
     }))
+
+    -- TODO OPTIMIZE PHI BLOCK
 
     store <- get
     let functionDef = printf ("define %s @%s(%s) {\n") (showTypeInLLVM type') (showIdent ident) (showArgs args)
@@ -240,19 +245,25 @@ prepareArgs (x:xs) = do
     return newEnv
 
 prepareArg :: Arg -> GenM Env
-prepareArg (Arg type' ident) = do
+prepareArg (Arg type' ident@(Ident argName)) = do
     store <- get
     env <- ask
     newRegister <- getNextRegisterCounter
-    let result = (LLVMVariable {
-        type' = LLVMType type',
+    let allocaVar = (LLVMVariable {
+        type' = LLVMTypePointer (LLVMType type'),
         address = LLVMAddressRegister newRegister,
         blockLabel = (currentLabel store),
         ident = Just ident
     })
-    emit (Alloca result)
-    -- emit (MemoryStore )
-    return env
+    let funcArg = (LLVMVariable {
+        type' = LLVMType type',
+        address = LLVMAddressNamedRegister argName,
+        blockLabel = (currentLabel store),
+        ident = Nothing
+    })
+    emit (Alloca allocaVar)
+    emit (MemoryStore funcArg allocaVar)
+    return $ env { vars = Map.insert ident allocaVar (vars env)}
 
 
 compileBlock :: Block -> GenM ()
@@ -377,7 +388,7 @@ compileDecl type' (NoInit ident) = do
     })
     emit (Alloca allocaVar)
     emit (MemoryStore rhs allocaVar)
-    return $ env { vars = Map.insert ident allocaVar (vars env )}
+    return $ env { vars = Map.insert ident allocaVar (vars env)}
 compileDecl type' (Init ident expr) = do
     rhs <- compileExpr expr
     variableRegister <- getNextRegisterCounter
@@ -477,23 +488,38 @@ compileExpr (EString s) = do
     store <- get
     case Map.lookup s (stringsMap store) of
         Just i -> do
-            return (LLVMVariable {
+            newRegister <- getNextRegisterCounter
+
+            let result = (LLVMVariable {
                 type' = LLVMType Str,
-                address = LLVMAddressString s i,
+                address = LLVMAddressRegister newRegister,
                 blockLabel = currentLabel store,
                 ident = Nothing
             })
+            
+            emit (BitcastString s i result)
+
+            return result
+
         Nothing -> do
             let newLength = toInteger $ (Map.size (stringsMap store)) + 1
             modify (\store -> (store {
                 stringsMap = Map.insert s newLength (stringsMap store)
             }))
-            return (LLVMVariable {
+
+            newRegister <- getNextRegisterCounter
+
+            let result = (LLVMVariable {
                 type' = LLVMType Str,
-                address = LLVMAddressString s newLength,
+                address = LLVMAddressRegister newRegister,
                 blockLabel = currentLabel store,
                 ident = Nothing
             })
+            
+            emit (BitcastString s newLength result)
+
+            return result
+            
 compileExpr (Neg expr) = compileExpr (EAdd (ELitInt 0) Minus expr)
 compileExpr (Not expr) = do
     store <- get
@@ -647,7 +673,8 @@ printLLVMVarType = printLLVMType . type'
 printLLVMAddress :: LLVMAddress -> String
 printLLVMAddress LLVMAddressVoid = ""
 printLLVMAddress (LLVMAddressImmediate integer) = show integer
-printLLVMAddress (LLVMAddressRegister label) = printf("%%%s") (show label)
+printLLVMAddress (LLVMAddressRegister label) = printf("%%r%s") (show label)
+printLLVMAddress (LLVMAddressNamedRegister strLabel) = printf("%%%s") (strLabel)
 printLLVMAddress (LLVMAddressString str int) = printf("TODO")
 
 printLLVMVarAddress :: LLVMVariable -> String
@@ -656,6 +683,7 @@ printLLVMVarAddress = printLLVMAddress . address
 printLLVMInstruction :: LLVMInstruction -> String
 printLLVMInstruction ReturnVoid = "ret void"
 printLLVMInstruction (Alloca llvmVariable) = printf "%s = alloca %s" (printLLVMVarAddress llvmVariable) (printLLVMType $ dereferencePointer $ type' llvmVariable)
+printLLVMInstruction (BitcastString s i var) = printf "%s = bitcast [%s x i8]* @s%s to i8*" (printLLVMVarAddress var) (show $ (length s) + 1) (show i)
 printLLVMInstruction (Return llvmVariable) = printf ("ret %s %s") (printLLVMVarType llvmVariable) (printLLVMVarAddress llvmVariable)
 printLLVMInstruction (Branch label) = printf ("br label %%L%s") (show label)
 printLLVMInstruction (BranchConditional v l1 l2) = printf ("br %s %s, label %%L%s, label %%L%s") (printLLVMVarType v) (printLLVMVarAddress v) (show l1) (show l2)
