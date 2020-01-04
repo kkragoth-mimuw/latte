@@ -92,8 +92,10 @@ data LLVMAddress = LLVMAddressVoid
     | LLVMAddressString String Integer
     | LLVMAddressRegister Integer deriving (Show)
 
+data LLVMType = LLVMType Type | LLVMTypePointer LLVMType deriving (Show)
+
 data LLVMVariable = LLVMVariable {
-    type' :: Type,
+    type' :: LLVMType,
     address :: LLVMAddress,
     blockLabel :: Integer,
     ident :: Maybe Ident
@@ -224,7 +226,7 @@ prepareArg (Arg type' ident) = do
     env <- ask
     newRegister <- getNextRegisterCounter
     let result = (LLVMVariable {
-        type' = type',
+        type' = LLVMType type',
         address = LLVMAddressRegister newRegister,
         blockLabel = (currentLabel store),
         ident = Just ident
@@ -346,7 +348,7 @@ compileDecl type' (NoInit ident) = do
     env <- ask
     store <- get
     let allocaVar = (LLVMVariable {
-        type' = type',
+        type' = LLVMType type',
         address = LLVMAddressRegister variableRegister,
         blockLabel = currentLabel store,
         ident = Just ident
@@ -360,7 +362,7 @@ compileDecl type' (Init ident expr) = do
     env <- ask
     store <- get
     let allocaVar = (LLVMVariable {
-        type' = type',
+        type' = LLVMType type',
         address = LLVMAddressRegister variableRegister,
         blockLabel = currentLabel store,
         ident = Just ident
@@ -373,7 +375,7 @@ defaultVariable :: Type -> GenM LLVMVariable
 defaultVariable Int = do
     store <- get
     return $ (LLVMVariable {
-        type' = Int,
+        type' = LLVMType Int,
         address = LLVMAddressImmediate 0,
         blockLabel = currentLabel store,
         ident = Nothing
@@ -381,7 +383,7 @@ defaultVariable Int = do
 defaultVariable Bool = do
     store <- get
     return $ (LLVMVariable {
-        type' = Int,
+        type' = LLVMType Bool,
         address = LLVMAddressImmediate 0,
         blockLabel = currentLabel store,
         ident = Nothing
@@ -405,7 +407,7 @@ compileExpr (EVar ident) = do
 compileExpr (ELitInt i) = do
     blockLabel <- gets currentLabel
     return LLVMVariable {
-        type' = Int,
+        type' = LLVMType Int,
         address = LLVMAddressImmediate i,
         blockLabel = blockLabel,
         ident = Nothing
@@ -413,7 +415,7 @@ compileExpr (ELitInt i) = do
 compileExpr(ELitTrue) = do
     blockLabel <- gets currentLabel
     return LLVMVariable {
-        type' = Bool,
+        type' = LLVMType Bool,
         address = LLVMAddressImmediate 1,
         blockLabel = blockLabel,
         ident = Nothing
@@ -421,7 +423,7 @@ compileExpr(ELitTrue) = do
 compileExpr(ELitFalse) = do
     blockLabel <- gets currentLabel
     return LLVMVariable {
-        type' = Bool,
+        type' = LLVMType Bool,
         address = LLVMAddressImmediate 0,
         blockLabel = blockLabel,
         ident = Nothing
