@@ -128,9 +128,22 @@ class Typecheckable f where
 
 instance Typecheckable Program where
     typecheckProgram (Program topdefs) = do
-        env <- typecheckTopDefs topdefs
+        env <- fillFunctionsInformations topdefs
+        local (const env) (mapM_ typecheckTopDef topdefs)
         local (const env) typecheckMainBlock
         return ()
+
+fillFunctionsInformations :: [TopDef] -> TCM TCEnv
+fillFunctionsInformations [] = ask
+fillFunctionsInformations ((FnDef fnType fnName args (Block stmts)):xs) = do
+    checkIfIsAlreadyDeclaredATCurrentLevel fnName
+    env <- fillFunctionsInformations xs
+    let funcType = Fun fnType (Prelude.map argToType args)
+    let newTypesMap = Map.insert fnName (funcType, level env) (typesMap env)
+    let newEnv = env { typesMap = newTypesMap }
+
+    return newEnv
+    
 
 typecheckMainBlock :: TCM ()
 typecheckMainBlock = do
@@ -141,28 +154,28 @@ typecheckMainBlock = do
         Just ((Fun Int _), _) -> return ()
         _ -> throwError $ initTypecheckError $ TCMainInvalidReturnType
 
-typecheckTopDefs :: [TopDef] -> TCM TCEnv
-typecheckTopDefs [] = ask
-typecheckTopDefs (x:xs) = do
-    env <- typecheckTopDef x
-    local (const env) (typecheckTopDefs xs)
+-- typecheckTopDefs :: [TopDef] -> TCM ()
+-- typecheckTopDefs [] = ()
+-- typecheckTopDefs (x:xs) = do
+--     typecheckTopDef x
+--     typecheckTopDefs xs
 
-typecheckTopDef :: TopDef -> TCM TCEnv
+typecheckTopDef :: TopDef -> TCM ()
 typecheckTopDef (FnDef fnType fnName args (Block stmts)) = do 
-    checkIfIsAlreadyDeclaredATCurrentLevel fnName
+    -- checkIfIsAlreadyDeclaredATCurrentLevel fnName
     let (Ident name) = fnName
     if (name == "main" && length args /= 0) then
         throwError $ initTypecheckError $ TCMainInvalidArgs
     else do
         env <- ask
-        let funcType = Fun fnType (Prelude.map argToType args)
-        let newTypesMap = Map.insert fnName (funcType, level env) (typesMap env)
-        let newEnv = env { typesMap = newTypesMap }
-        let newEnvForFunction = Prelude.foldr updateEnv newEnv args
+        -- let funcType = Fun fnType (Prelude.map argToType args)
+        -- let newTypesMap = Map.insert fnName (funcType, level env) (typesMap env)
+        -- let newEnv = env { typesMap = newTypesMap }
+        let newEnvForFunction = Prelude.foldr updateEnv env args
 
         local (const $ indicateReturnType (increaseLevel newEnvForFunction) fnType) (typecheckStmts stmts)
 
-        return newEnv
+        return ()
 
 
 argToType :: Arg -> Type
@@ -317,12 +330,14 @@ typecheckExpr (EMul exprLeft _ exprRight) = do
         (Int, Int) -> return Int
         (Int, x)   -> throwError $ initTypecheckError $ TCInvalidTypeExpectedType x Int
         (x, _)     ->  throwError $ initTypecheckError $ TCInvalidTypeExpectedType x Int
-typecheckExpr (ERel exprLeft _ exprRight) = do
+typecheckExpr (ERel exprLeft op exprRight) = do
     (left, right) <- typecheckExpr2 exprLeft exprRight
-    case (left, right) of
-        (Int, Int) -> return Bool
-        (Int, x)   -> throwError $ initTypecheckError $ TCInvalidTypeExpectedType x Int
-        (x, _)     -> throwError $ initTypecheckError $ TCInvalidTypeExpectedType x Int
+    case (left, right, op) of
+        (Bool, Bool, EQU) -> return Bool
+        (Bool, Bool, NE) -> return Bool
+        (Int, Int, _) -> return Bool
+        (Int, x, _)   -> throwError $ initTypecheckError $ TCInvalidTypeExpectedType x Int
+        (x, _, _)     -> throwError $ initTypecheckError $ TCInvalidTypeExpectedType x Int
 typecheckExpr(EAdd expr1 addop expr2) = do
     (left, right) <- typecheckExpr2 expr1 expr2
     case (left, right, addop) of

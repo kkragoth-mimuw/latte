@@ -41,6 +41,7 @@ run v p s = let ts = myLLexer s in case p ts of
            Ok  tree -> case runTypecheck initTCEnv tree of
                             Left error -> do
                               putStrLn "ERROR\n"
+                              putStrLn "typechecker error"
                               pprintTypecheckerErrorMsg error
                               exitFailure
                             Right _ -> do

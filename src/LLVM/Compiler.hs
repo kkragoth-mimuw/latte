@@ -25,6 +25,7 @@ import Text.Printf
 import AbsLatte 
 
 debugPrint = 0
+phiOptimization = 1
 
 type GenM a = (ExceptT CompilationError (ReaderT Env (StateT Store IO) )) a
 
@@ -103,6 +104,7 @@ data LLVMInstruction = Alloca LLVMVariable
     | Branch Integer
     | Call LLVMVariable Ident [LLVMVariable]
     | CallVoid Ident [LLVMVariable]
+    | Phi LLVMVariable [LLVMVariable]
     | BranchConditional LLVMVariable Integer Integer deriving (Show)
 
 data LLVMAddress = LLVMAddressVoid
@@ -188,7 +190,9 @@ compileFnDef (FnDef type' ident args block) = do
 
     functionBlocksMap <- gets functionBlocks
     let blockMap = fromJust $ Map.lookup ident functionBlocksMap
-    optimizedBlockMap <- optimizeBlockMapReturn blockMap
+    -- TODO
+    -- optimizedBlockMap <- optimizeBlockMapReturn blockMap
+    let optimizedBlockMap = blockMap
     modify (\store -> (store {
         functionBlocks = Map.insert ident (optimizedBlockMap) functionBlocksMap
     }))
@@ -330,6 +334,7 @@ compileStmt (Cond expr stmt) = do
     afterIfBlock <- getNewLabel
     emitInSpecificBlock previousLabel (BranchConditional condition ifTrueStmtsLabel afterIfBlock)
     emitInSpecificBlock ifTrueStmtsLabel (Branch afterIfBlock)
+
     ask
 compileStmt (CondElse expr stmtTrue stmtFalse) = do
     condition <- compileExpr expr
@@ -584,10 +589,57 @@ compileExpr (ERel expr1 relOp expr2) = do
     })
     emit (Operation left (RelBinOp relOp) right result)
     return result
+-- compileExpr (EAnd expr1 expr2) = do
+--     store <- get
+--     left <- compileExpr expr1
+--     right <- compileExpr expr2
+--     nextRegister <- getNextRegisterCounter
+--     let result = (LLVMVariable {
+--         type' = LLVMType Bool,
+--         address = LLVMAddressRegister nextRegister,
+--         blockLabel = currentLabel store,
+--         ident = Nothing
+--     })
+--     emit (Operation left (AndOp) right result)
+--     return result
+-- compileExpr (EOr expr1 expr2) = do
+--     store <- get
+--     left <- compileExpr expr1
+--     right <- compileExpr expr2
+--     nextRegister <- getNextRegisterCounter
+--     let result = (LLVMVariable {
+--         type' = LLVMType Bool,
+--         address = LLVMAddressRegister nextRegister,
+--         blockLabel = currentLabel store,
+--         ident = Nothing
+--     })
+--     emit (Operation left (OrOp) right result)
+--     return result
+
+-- from slides
+-- genCond (CAnd c1 c2) lTrue lFalse = do
+--     lMid <- freshLabel
+--     genCond c1 lMid lFalse
+--     emit $ placeLabel lMid
+--     genCond c2 lTrue lFalse
+-- genCond (COr c1 c2) lTrue lFalse = do
+--     lMid <- freshLabel
+--     genCond c1 lTrue lMid
+--     emit $ placeLabel lMid
+--     genCond c2 lTrue lFalse
 compileExpr (EAnd expr1 expr2) = do
     store <- get
+    let previousLabel = currentLabel store
     left <- compileExpr expr1
+
+    middleLabel <- getNewLabel
     right <- compileExpr expr2
+
+    endLabel <- getNewLabel
+
+    emitInSpecificBlock previousLabel (BranchConditional left middleLabel endLabel)
+    emitInSpecificBlock middleLabel (Branch endLabel)
+
     nextRegister <- getNextRegisterCounter
     let result = (LLVMVariable {
         type' = LLVMType Bool,
@@ -595,12 +647,24 @@ compileExpr (EAnd expr1 expr2) = do
         blockLabel = currentLabel store,
         ident = Nothing
     })
-    emit (Operation left (AndOp) right result)
+
+    emit (Phi result [left, right])
+
     return result
+
 compileExpr (EOr expr1 expr2) = do
     store <- get
+    let previousLabel = currentLabel store
     left <- compileExpr expr1
+
+    middleLabel <- getNewLabel
     right <- compileExpr expr2
+
+    endLabel <- getNewLabel
+
+    emitInSpecificBlock previousLabel (BranchConditional left endLabel middleLabel)
+    emitInSpecificBlock middleLabel (Branch endLabel)
+
     nextRegister <- getNextRegisterCounter
     let result = (LLVMVariable {
         type' = LLVMType Bool,
@@ -608,7 +672,9 @@ compileExpr (EOr expr1 expr2) = do
         blockLabel = currentLabel store,
         ident = Nothing
     })
-    emit (Operation left (OrOp) right result)
+
+    emit (Phi result [left, right])
+
     return result
 
 getNextRegisterCounter :: GenM Integer
@@ -670,6 +736,9 @@ printLLVMType (LLVMTypePointer t) = (printLLVMType t) ++ "*"
 printLLVMVarType :: LLVMVariable -> String
 printLLVMVarType = printLLVMType . type'
 
+printLLVMVarLabel :: LLVMVariable -> String
+printLLVMVarLabel var = "L" ++ (show $ blockLabel var)
+
 printLLVMAddress :: LLVMAddress -> String
 printLLVMAddress LLVMAddressVoid = ""
 printLLVMAddress (LLVMAddressImmediate integer) = show integer
@@ -704,7 +773,10 @@ printLLVMInstruction (Operation l op r result) = case op of
         (GE) -> printf ("%s = icmp sge %s %s, %s") (printLLVMVarAddress result) (printLLVMVarType l) (printLLVMVarAddress l) (printLLVMVarAddress r)
         (NE) -> printf ("%s = icmp ne %s %s, %s") (printLLVMVarAddress result) (printLLVMVarType l) (printLLVMVarAddress l) (printLLVMVarAddress r)
         (EQU) -> printf ("%s = icmp eq %s %s, %s") (printLLVMVarAddress result) (printLLVMVarType l) (printLLVMVarAddress l) (printLLVMVarAddress r)
+printLLVMInstruction (Phi v vars) = printf ("%s = phi %s %s") (printLLVMVarAddress v) (printLLVMVarType v) (printPhiVars vars)
 
+printPhiVars :: [LLVMVariable] -> String
+printPhiVars vars = intercalate (",") (map (\var -> (printf ("[ %s, %s ]") (printLLVMVarAddress var) (printLLVMVarLabel var))) vars)
 predefinedFunctions :: [(Ident, Type)]
 predefinedFunctions = ([
         (Ident "printInt", (Fun Void [Int])),

@@ -1,4 +1,8 @@
 int main() {
-	string s = "hello world";
+	string s1 = "hello ";
+	string s2 = "world!";
+
+	printString(s1+s2);
+	
 	return 0;
 }
