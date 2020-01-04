@@ -17,6 +17,8 @@ import Text.Printf
 
 import AbsLatte 
 
+debugPrint = 0
+
 type GenM a = (ExceptT CompilationError (ReaderT Env (StateT Store IO) )) a
 
 data CompilationError = CompilationErrorFunctionHasNoExplicitReturn Ident
@@ -529,7 +531,7 @@ compileExpr (ERel expr1 relOp expr2) = do
     right <- compileExpr expr2
     nextRegister <- getNextRegisterCounter
     let result = (LLVMVariable {
-        type' = LLVMType Int,
+        type' = LLVMType Bool,
         address = LLVMAddressRegister nextRegister,
         blockLabel = currentLabel store,
         ident = Nothing
@@ -542,7 +544,7 @@ compileExpr (EAnd expr1 expr2) = do
     right <- compileExpr expr2
     nextRegister <- getNextRegisterCounter
     let result = (LLVMVariable {
-        type' = LLVMType Int,
+        type' = LLVMType Bool,
         address = LLVMAddressRegister nextRegister,
         blockLabel = currentLabel store,
         ident = Nothing
@@ -555,7 +557,7 @@ compileExpr (EOr expr1 expr2) = do
     right <- compileExpr expr2
     nextRegister <- getNextRegisterCounter
     let result = (LLVMVariable {
-        type' = LLVMType Int,
+        type' = LLVMType Bool,
         address = LLVMAddressRegister nextRegister,
         blockLabel = currentLabel store,
         ident = Nothing
@@ -595,11 +597,13 @@ showArg (Arg type' ident) = printf ("%s %%%s") (showTypeInLLVM type') (showIdent
 
 showBlocks :: [LLVMBlock] -> String
 showBlocks [] = ""
-showBlocks (x:xs) = showBlock x ++ showBlocks xs
+showBlocks (x:xs) = if (debugPrint == 0) then (showBlock x ++ showBlocks xs) else (showBlockDebug x ++ showBlocks xs)
 
 showBlock :: LLVMBlock -> String
 showBlock block = printf("L%s:\n\t%s\n") (show $ label block) (intercalate "\n\t" (map printLLVMInstruction (code block)))
 
+showBlockDebug :: LLVMBlock -> String
+showBlockDebug block = printf("L%s:\n\t%s\n") (show $ label block) (intercalate "\n\t" (map show (code block)))
 
 showTypeInLLVM :: Type -> String
 showTypeInLLVM Void = "void"
@@ -627,6 +631,7 @@ printLLVMVarAddress = printLLVMAddress . address
 
 printLLVMInstruction :: LLVMInstruction -> String
 printLLVMInstruction ReturnVoid = "ret void"
+printLLVMInstruction (Alloca llvmVariable) = printf "%s = alloca %s" (printLLVMVarAddress llvmVariable) (printLLVMVarType llvmVariable)
 printLLVMInstruction (Return llvmVariable) = printf ("ret %s %s") (printLLVMVarType llvmVariable) (printLLVMVarAddress llvmVariable)
 printLLVMInstruction (Branch label) = printf ("br %%%s") (show label)
 
