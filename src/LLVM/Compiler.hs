@@ -3,6 +3,15 @@
 -- TODO: https://buildmedia.readthedocs.org/media/pdf/mapping-high-level-constructs-to-llvm-ir/latest/mapping-high-level-constructs-to-llvm-ir.pdf
 -- on mac:  /usr/local/opt/llvm/bin
 
+-- TODO:
+-- ARGS
+-- STRINGS
+-- AND / OR shortcuts
+-- PHI_OPTIMIZATIONS
+-- TESTING
+-- DUMMY FRONTEND OPTIMIZATIONS
+-- ADVANCED FRONTEND OPTIMIZATIONS
+
 module LLVM.Compiler where
 
 import           Control.Monad.Except
