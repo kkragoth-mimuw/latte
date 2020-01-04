@@ -4,9 +4,8 @@
 -- on mac:  /usr/local/opt/llvm/bin/llvm-as
 
 -- TODO:
--- AND / OR shortcuts
--- PHI_OPTIMIZATIONS
 -- TESTING
+-- PHI_OPTIMIZATIONS
 -- DUMMY FRONTEND OPTIMIZATIONS
 -- ADVANCED FRONTEND OPTIMIZATIONS
 
