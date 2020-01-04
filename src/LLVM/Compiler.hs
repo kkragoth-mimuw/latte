@@ -76,7 +76,7 @@ data LLVMBlock = LLVMBlock {
 } deriving (Show)
 
 
-data Op = AddBinOp AddOp | MulBinOp MulOp | RelBinOp RelOp | AndOp | OrOp | Xor deriving (Show)
+data Op = AddBinOp AddOp | MulBinOp MulOp | RelBinOp RelOp | AndOp | OrOp | XorOp deriving (Show)
 
 data LLVMInstruction = Alloca LLVMVariable
     | Operation LLVMVariable Op LLVMVariable LLVMVariable
@@ -176,10 +176,10 @@ compileFnDef (FnDef type' ident args block) = do
     }))
 
     store <- get
-    let functionDef = printf ("declare %s @%s(%s) {\n") (showTypeInLLVM type') (showIdent ident) (showArgs args)
+    let functionDef = printf ("define %s @%s(%s) {\n") (showTypeInLLVM type') (showIdent ident) (showArgs args)
     let blockCode = showBlocks (Map.elems $ fromJust $ Map.lookup (ident) (functionBlocks store))
 
-    return (functionDef ++ blockCode ++ "}")
+    return (functionDef ++ blockCode ++ "}\n\n")
 
 optimizeBlockMapReturn :: BlockMap -> GenM BlockMap
 optimizeBlockMapReturn blockMap = do
@@ -193,15 +193,17 @@ optimizeBlock block = do
     store <- get
 
     let newCode = codeUntilBranchOrReturn (code block)
-    
-    case (last newCode) of
-        ReturnVoid -> return $ block { code = newCode }
-        Return _ -> return $ block { code = newCode }
-        Branch _ -> return $ block { code = newCode }
-        BranchConditional _ _ _ -> return $ block { code = newCode }
-        _ -> throwError $ CompilationErrorFunctionHasNoExplicitReturn (currentFunction store)
+
+    if (length newCode == 0) then do
+        throwError $ CompilationErrorFunctionHasNoExplicitReturn (currentFunction store)
+    else do
+        case (last newCode) of
+            ReturnVoid -> return $ block { code = newCode }
+            Return _ -> return $ block { code = newCode }
+            Branch _ -> return $ block { code = newCode }
+            BranchConditional _ _ _ -> return $ block { code = newCode }
+            _ -> throwError $ CompilationErrorFunctionHasNoExplicitReturn (currentFunction store)
         
-    -- return $ block { code = newCode }
 
 codeUntilBranchOrReturn :: [LLVMInstruction] -> [LLVMInstruction]
 codeUntilBranchOrReturn [] = []
@@ -489,7 +491,7 @@ compileExpr (Not expr) = do
         blockLabel = currentLabel store,
         ident = Nothing
     })
-    emit (Operation trueVar Xor var result)
+    emit (Operation trueVar XorOp var result)
     return result
 compileExpr (EMul expr1 mulOp expr2) = do
     store <- get
@@ -644,4 +646,18 @@ printLLVMInstruction (Branch label) = printf ("br %%L%s") (show label)
 printLLVMInstruction (BranchConditional v l1 l2) = printf ("br %s %s, label %%L%s, label %%L%s") (printLLVMVarType v) (printLLVMVarAddress v) (show l1) (show l2)
 printLLVMInstruction (MemoryStore s t) = printf ("store %s %s, %s %s") (printLLVMVarType s) (printLLVMVarAddress s) (printLLVMVarType t) (printLLVMVarAddress t)
 printLLVMInstruction (Load r v) = printf ("%s = load %s, %s %s") (printLLVMVarAddress r) (printLLVMVarType r) (printLLVMVarType v) (printLLVMVarAddress v)
-printLLVMInstruction instr = show instr
+printLLVMInstruction (Call v (Ident fnName) args) = printf ("%s = call %s @%s(%s)") (printLLVMVarAddress v) (printLLVMVarType v) fnName (intercalate "," (map printLLVMVarType args))
+printLLVMInstruction (CallVoid (Ident fnName) args) = printf ("call void @%s(%s)") fnName (intercalate "," (map printLLVMVarType args))
+printLLVMInstruction (Operation l op r result) = case op of
+    (AddBinOp Plus) -> printf ("%s = add %s %s, %s") (printLLVMVarAddress result) (printLLVMVarType result) (printLLVMVarAddress l) (printLLVMVarAddress r)
+    (AddBinOp Minus) -> printf ("%s = sub %s %s, %s") (printLLVMVarAddress result) (printLLVMVarType result) (printLLVMVarAddress l) (printLLVMVarAddress r)
+    (AndOp) -> printf ("%s = and %s %s, %s") (printLLVMVarAddress result) (printLLVMVarType result) (printLLVMVarAddress l) (printLLVMVarAddress r)
+    (OrOp) -> printf ("%s = or %s %s, %s") (printLLVMVarAddress result) (printLLVMVarType result) (printLLVMVarAddress l) (printLLVMVarAddress r)
+    (XorOp) -> printf ("%s = xor %s %s, %s") (printLLVMVarAddress result) (printLLVMVarType result) (printLLVMVarAddress l) (printLLVMVarAddress r)
+    (RelBinOp relOp) -> case relOp of
+        (LTH) -> printf ("%s = icmp slt %s %s, %s") (printLLVMVarAddress result) (printLLVMVarType result) (printLLVMVarAddress l) (printLLVMVarAddress r)
+        (LE) -> printf ("%s = icmp sle %s %s, %s") (printLLVMVarAddress result) (printLLVMVarType result) (printLLVMVarAddress l) (printLLVMVarAddress r)
+        (GTH) -> printf ("%s = icmp sgt %s %s, %s") (printLLVMVarAddress result) (printLLVMVarType result) (printLLVMVarAddress l) (printLLVMVarAddress r)
+        (GE) -> printf ("%s = icmp sge %s %s, %s") (printLLVMVarAddress result) (printLLVMVarType result) (printLLVMVarAddress l) (printLLVMVarAddress r)
+        (NE) -> printf ("%s = icmp ne %s %s, %s") (printLLVMVarAddress result) (printLLVMVarType result) (printLLVMVarAddress l) (printLLVMVarAddress r)
+        (EQU) -> printf ("%s = icmp eq %s %s, %s") (printLLVMVarAddress result) (printLLVMVarType result) (printLLVMVarAddress l) (printLLVMVarAddress r)
