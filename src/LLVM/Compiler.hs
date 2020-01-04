@@ -31,7 +31,9 @@ runCompiler program = do
     runInfo <- runStateT (runReaderT (runExceptT (compile program)) initEnv) initStore
     case runInfo of 
         (Left compilationError, store) -> return $ Left (show compilationError)
-        (Right res, store) -> return $ Right res
+        (Right res, store) -> do
+            let stringsDecl =  showStringsDeclarations (stringsMap store)
+            return $ Right res
 
 class Compilable f  where
     compile :: f -> GenM String
@@ -75,6 +77,8 @@ data LLVMBlock = LLVMBlock {
     outEdges :: [Integer]
 } deriving (Show)
 
+showStringsDeclarations :: Map.Map String Integer -> String
+showStringsDeclarations stringMap = ""
 
 data Op = AddBinOp AddOp | MulBinOp MulOp | RelBinOp RelOp | AndOp | OrOp | XorOp deriving (Show)
 
@@ -662,3 +666,6 @@ printLLVMInstruction (Operation l op r result) = case op of
         (GE) -> printf ("%s = icmp sge %s %s, %s") (printLLVMVarAddress result) (printLLVMVarType l) (printLLVMVarAddress l) (printLLVMVarAddress r)
         (NE) -> printf ("%s = icmp ne %s %s, %s") (printLLVMVarAddress result) (printLLVMVarType l) (printLLVMVarAddress l) (printLLVMVarAddress r)
         (EQU) -> printf ("%s = icmp eq %s %s, %s") (printLLVMVarAddress result) (printLLVMVarType l) (printLLVMVarAddress l) (printLLVMVarAddress r)
+
+functionDeclarations :: String
+functionDeclarations = ""
