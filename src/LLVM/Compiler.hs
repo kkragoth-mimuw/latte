@@ -612,6 +612,10 @@ showTypeInLLVM Str = "i8*"
 showTypeInLLVM Bool = "i1"
 showTypeInLLVM _ = ""
 
+dereferencePointer :: LLVMType -> LLVMType
+dereferencePointer (LLVMTypePointer t) = t
+dereferencePointer _ = error "not a pointer!"
+
 -- I dont want to do this in typeclass SHOW cause I need additional info for debuging for optimizations
 printLLVMType :: LLVMType -> String
 printLLVMType (LLVMType type') = showTypeInLLVM type'
@@ -631,7 +635,7 @@ printLLVMVarAddress = printLLVMAddress . address
 
 printLLVMInstruction :: LLVMInstruction -> String
 printLLVMInstruction ReturnVoid = "ret void"
-printLLVMInstruction (Alloca llvmVariable) = printf "%s = alloca %s" (printLLVMVarAddress llvmVariable) (printLLVMVarType llvmVariable)
+printLLVMInstruction (Alloca llvmVariable) = printf "%s = alloca %s" (printLLVMVarAddress llvmVariable) (printLLVMType $ dereferencePointer $ type' llvmVariable)
 printLLVMInstruction (Return llvmVariable) = printf ("ret %s %s") (printLLVMVarType llvmVariable) (printLLVMVarAddress llvmVariable)
 printLLVMInstruction (Branch label) = printf ("br %%%s") (show label)
 
