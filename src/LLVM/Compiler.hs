@@ -237,7 +237,10 @@ prepareArg (Arg type' ident) = do
     -- emit (MemoryStore )
     return env
 
+
 compileBlock :: Block -> GenM ()
+compileBlock (Block []) = return ()
+compileBlock (Block [Empty]) = return ()
 compileBlock (Block stmts) = do
     store <- get
     let isInitBlock = initBlock store
