@@ -62,6 +62,7 @@ data Store = Store {
     labelCounter :: Integer,
     registerCounter :: Integer,
     functionBlocks :: Map.Map Ident BlockMap,
+    functionsLabelFollowUp :: Map.Map Ident LabelFollowUpMap,
     stringsMap :: Map.Map String Integer,
     initBlock :: Integer
 } deriving (Show)
@@ -73,11 +74,13 @@ initStore = Store {
     labelCounter = 0,
     registerCounter = -1,
     functionBlocks = Map.empty,
+    functionsLabelFollowUp = Map.empty,
     stringsMap = Map.empty,
     initBlock = 0
 }
 
 type BlockMap = Map.Map Integer LLVMBlock
+type LabelFollowUpMap = Map.Map Integer Integer
 
 data LLVMBlock = LLVMBlock {
     label :: Integer,
@@ -181,6 +184,7 @@ compileFnDef (FnDef type' ident args block) = do
         labelCounter = 0,
         registerCounter = -1,
         functionBlocks = Map.insert ident (Map.fromList [(0, (LLVMBlock { label = 0, code = [], inEdges = [], outEdges = []} ))]) (functionBlocks store),
+        functionsLabelFollowUp = Map.insert ident (Map.empty) (functionsLabelFollowUp store),
         initBlock = 1
     })
 
@@ -191,8 +195,8 @@ compileFnDef (FnDef type' ident args block) = do
     functionBlocksMap <- gets functionBlocks
     let blockMap = fromJust $ Map.lookup ident functionBlocksMap
     -- TODO
-    -- optimizedBlockMap <- optimizeBlockMapReturn blockMap
-    let optimizedBlockMap = blockMap
+    optimizedBlockMap <- optimizeBlockMapReturn blockMap
+    -- let optimizedBlockMap = blockMap -- noOptimize
     modify (\store -> (store {
         functionBlocks = Map.insert ident (optimizedBlockMap) functionBlocksMap
     }))
@@ -332,7 +336,10 @@ compileStmt (Cond expr stmt) = do
         _ -> do
             compileStmt stmt
     afterIfBlock <- getNewLabel
-    emitInSpecificBlock previousLabel (BranchConditional condition ifTrueStmtsLabel afterIfBlock)
+
+    previousLabelFollowUp <- getLabelFollowUp previousLabel
+    emitInSpecificBlock previousLabelFollowUp  (BranchConditional condition ifTrueStmtsLabel afterIfBlock)
+
     emitInSpecificBlock ifTrueStmtsLabel (Branch afterIfBlock)
 
     ask
@@ -352,7 +359,9 @@ compileStmt (CondElse expr stmtTrue stmtFalse) = do
         _ -> do
             compileStmt stmtFalse
     afterIfBlock <- getNewLabel
-    emitInSpecificBlock previousLabel (BranchConditional condition ifTrueStmtsLabel ifFalseStmtsLabel)
+
+    previousLabelFollowUp <- getLabelFollowUp previousLabel
+    emitInSpecificBlock previousLabelFollowUp (BranchConditional condition ifTrueStmtsLabel ifFalseStmtsLabel)
     emitInSpecificBlock ifTrueStmtsLabel (Branch afterIfBlock)
     emitInSpecificBlock ifFalseStmtsLabel (Branch afterIfBlock)
     ask
@@ -650,6 +659,14 @@ compileExpr (EAnd expr1 expr2) = do
 
     emit (Phi result [left, right])
 
+    -- FOLLOW UP
+    store1 <- get
+    let labelFollowUpMap = fromJust $ Map.lookup (currentFunction store1) (functionsLabelFollowUp store1)
+    let updatedFollowUpMap = Map.insert previousLabel endLabel labelFollowUpMap
+    modify (\store -> (store {
+        functionsLabelFollowUp = Map.insert (currentFunction store) (updatedFollowUpMap) (functionsLabelFollowUp store)
+    }))
+
     return result
 
 compileExpr (EOr expr1 expr2) = do
@@ -675,8 +692,24 @@ compileExpr (EOr expr1 expr2) = do
 
     emit (Phi result [left, right])
 
+        -- FOLLOW UP
+    store1 <- get
+    let labelFollowUpMap = fromJust $ Map.lookup (currentFunction store1) (functionsLabelFollowUp store1)
+    let updatedFollowUpMap = Map.insert previousLabel endLabel labelFollowUpMap
+    modify (\store -> (store {
+        functionsLabelFollowUp = Map.insert (currentFunction store) (updatedFollowUpMap) (functionsLabelFollowUp store)
+    }))
+
     return result
 
+getLabelFollowUp :: Integer -> GenM Integer
+getLabelFollowUp label = do
+    store <- get
+    let labelFollowUpMap = fromJust $ (Map.lookup (currentFunction store) (functionsLabelFollowUp store))
+    case Map.lookup label labelFollowUpMap of
+        Just i -> getLabelFollowUp i
+        Nothing -> return label
+        
 getNextRegisterCounter :: GenM Integer
 getNextRegisterCounter = do
     modify (\store ->
