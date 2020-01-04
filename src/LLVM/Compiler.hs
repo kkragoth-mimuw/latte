@@ -701,8 +701,7 @@ showIdent :: Ident -> String
 showIdent (Ident s) = s
 
 showArgs :: [Arg] -> String
-showArgs [] = ""
-showArgs (x:xs) = (showArg x) ++ (showArgs xs)
+showArgs args = intercalate (", ") (map showArg args)
 
 showArg :: Arg -> String
 showArg (Arg type' ident) = printf ("%s %%%s") (showTypeInLLVM type') (showIdent ident)
