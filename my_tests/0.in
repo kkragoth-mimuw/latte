@@ -8,7 +8,7 @@ int main() {
 	int j = 1;
 
 	if (i < j) {
-		return foo();
+		printInt(foo());
 	}
 
 	return 0;

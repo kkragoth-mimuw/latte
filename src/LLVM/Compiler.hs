@@ -32,8 +32,9 @@ runCompiler program = do
     case runInfo of 
         (Left compilationError, store) -> return $ Left (show compilationError)
         (Right res, store) -> do
+            let predefinedFunctions = showPredefinedFunctions
             let stringsDecl =  showStringsDeclarations (stringsMap store)
-            return $ Right res
+            return $ Right (predefinedFunctions ++ "\n" ++stringsDecl ++ res)
 
 class Compilable f  where
     compile :: f -> GenM String
@@ -60,7 +61,7 @@ data Store = Store {
 initStore = Store {
     currentFunction = Ident "",
     currentLabel = 0,
-    functions = Map.empty,
+    functions = Map.fromList (predefinedFunctions),
     labelCounter = 0,
     registerCounter = -1,
     functionBlocks = Map.empty,
@@ -647,12 +648,12 @@ printLLVMInstruction :: LLVMInstruction -> String
 printLLVMInstruction ReturnVoid = "ret void"
 printLLVMInstruction (Alloca llvmVariable) = printf "%s = alloca %s" (printLLVMVarAddress llvmVariable) (printLLVMType $ dereferencePointer $ type' llvmVariable)
 printLLVMInstruction (Return llvmVariable) = printf ("ret %s %s") (printLLVMVarType llvmVariable) (printLLVMVarAddress llvmVariable)
-printLLVMInstruction (Branch label) = printf ("br %%L%s") (show label)
+printLLVMInstruction (Branch label) = printf ("br label %%L%s") (show label)
 printLLVMInstruction (BranchConditional v l1 l2) = printf ("br %s %s, label %%L%s, label %%L%s") (printLLVMVarType v) (printLLVMVarAddress v) (show l1) (show l2)
 printLLVMInstruction (MemoryStore s t) = printf ("store %s %s, %s %s") (printLLVMVarType s) (printLLVMVarAddress s) (printLLVMVarType t) (printLLVMVarAddress t)
 printLLVMInstruction (Load r v) = printf ("%s = load %s, %s %s") (printLLVMVarAddress r) (printLLVMVarType r) (printLLVMVarType v) (printLLVMVarAddress v)
-printLLVMInstruction (Call v (Ident fnName) args) = printf ("%s = call %s @%s(%s)") (printLLVMVarAddress v) (printLLVMVarType v) fnName (intercalate "," (map printLLVMVarType args))
-printLLVMInstruction (CallVoid (Ident fnName) args) = printf ("call void @%s(%s)") fnName (intercalate "," (map printLLVMVarType args))
+printLLVMInstruction (Call v (Ident fnName) args) = printf ("%s = call %s @%s(%s)") (printLLVMVarAddress v) (printLLVMVarType v) fnName (intercalate "," (zipWith (\t -> \r -> (printf "%s %s") t r) (map printLLVMVarType args) (map printLLVMVarAddress args)))
+printLLVMInstruction (CallVoid (Ident fnName) args) = printf ("call void @%s(%s)") fnName (intercalate "," (zipWith (\t -> \r -> (printf "%s %s") t r) (map printLLVMVarType args) (map printLLVMVarAddress args)))
 printLLVMInstruction (Operation l op r result) = case op of
     (AddBinOp Plus) -> printf ("%s = add %s %s, %s") (printLLVMVarAddress result) (printLLVMVarType result) (printLLVMVarAddress l) (printLLVMVarAddress r)
     (AddBinOp Minus) -> printf ("%s = sub %s %s, %s") (printLLVMVarAddress result) (printLLVMVarType result) (printLLVMVarAddress l) (printLLVMVarAddress r)
@@ -667,5 +668,22 @@ printLLVMInstruction (Operation l op r result) = case op of
         (NE) -> printf ("%s = icmp ne %s %s, %s") (printLLVMVarAddress result) (printLLVMVarType l) (printLLVMVarAddress l) (printLLVMVarAddress r)
         (EQU) -> printf ("%s = icmp eq %s %s, %s") (printLLVMVarAddress result) (printLLVMVarType l) (printLLVMVarAddress l) (printLLVMVarAddress r)
 
-functionDeclarations :: String
-functionDeclarations = ""
+predefinedFunctions :: [(Ident, Type)]
+predefinedFunctions = ([
+        (Ident "printInt", (Fun Void [Int])),
+        (Ident "printString", (Fun Void [Str])),
+        (Ident "error", (Fun Void [])),
+        (Ident "readInt", (Fun Int [])),
+        (Ident "readString", (Fun Str [])),
+        (Ident "__concatStrings", (Fun Str [Str, Str]))
+    ])
+
+showPredefinedFunctions :: String
+showPredefinedFunctions = (intercalate ("\n") ([
+        "declare void @printInt(i32)",
+        "declare void @printString(i8*)",
+        "declare void @error()",
+        "declare i32 @readInt()",
+        "declare i8* @readString()",
+        "declare i8* @__concatStrings(i8*, i8*)"
+    ])) ++ "\n"
