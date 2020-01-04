@@ -28,8 +28,8 @@ runCompiler :: (Compilable program) => program -> IO (Either String String)
 runCompiler program = do
     runInfo <- runStateT (runReaderT (runExceptT (compile program)) initEnv) initStore
     case runInfo of 
-        (Left compilationError, _) -> return $ Left (show compilationError)
-        (Right res, _) -> return $ Right res
+        (Left compilationError, store) -> return $ Left (show compilationError)
+        (Right res, store) -> return $ Right res
 
 class Compilable f  where
     compile :: f -> GenM String
@@ -348,7 +348,7 @@ compileDecl type' (NoInit ident) = do
     env <- ask
     store <- get
     let allocaVar = (LLVMVariable {
-        type' = LLVMType type',
+        type' = LLVMTypePointer (LLVMType type'),
         address = LLVMAddressRegister variableRegister,
         blockLabel = currentLabel store,
         ident = Just ident
@@ -362,7 +362,7 @@ compileDecl type' (Init ident expr) = do
     env <- ask
     store <- get
     let allocaVar = (LLVMVariable {
-        type' = LLVMType type',
+        type' = LLVMTypePointer (LLVMType type'),
         address = LLVMAddressRegister variableRegister,
         blockLabel = currentLabel store,
         ident = Just ident
@@ -436,7 +436,7 @@ compileExpr (EApp ident exprs) = do
         (Fun Void _) -> do
             emit (CallVoid ident args)
             return (LLVMVariable {
-                type' = Void,
+                type' = LLVMType Void,
                 address = LLVMAddressVoid,
                 blockLabel = (currentLabel store),
                 ident = Nothing
@@ -444,7 +444,7 @@ compileExpr (EApp ident exprs) = do
         (Fun type' _) -> do
             newRegister <- getNextRegisterCounter
             let result = (LLVMVariable {
-                type' = type',
+                type' = LLVMType type',
                 address = LLVMAddressRegister newRegister,
                 blockLabel = (currentLabel store),
                 ident = Nothing
@@ -456,7 +456,7 @@ compileExpr (EString s) = do
     case Map.lookup s (stringsMap store) of
         Just i -> do
             return (LLVMVariable {
-                type' = Str,
+                type' = LLVMType Str,
                 address = LLVMAddressString s i,
                 blockLabel = currentLabel store,
                 ident = Nothing
@@ -467,7 +467,7 @@ compileExpr (EString s) = do
                 stringsMap = Map.insert s newLength (stringsMap store)
             }))
             return (LLVMVariable {
-                type' = Str,
+                type' = LLVMType Str,
                 address = LLVMAddressString s newLength,
                 blockLabel = currentLabel store,
                 ident = Nothing
@@ -479,7 +479,7 @@ compileExpr (Not expr) = do
     trueVar <- compileExpr (ELitTrue)
     nextRegister <- getNextRegisterCounter
     let result = (LLVMVariable {
-        type' = Bool,
+        type' = LLVMType Bool,
         address = LLVMAddressRegister nextRegister,
         blockLabel = currentLabel store,
         ident = Nothing
@@ -492,7 +492,7 @@ compileExpr (EMul expr1 mulOp expr2) = do
     right <- compileExpr expr2
     nextRegister <- getNextRegisterCounter
     let result = (LLVMVariable {
-        type' = Int,
+        type' = LLVMType Int,
         address = LLVMAddressRegister nextRegister,
         blockLabel = currentLabel store,
         ident = Nothing
@@ -505,18 +505,18 @@ compileExpr (EAdd expr1 addOp expr2) = do
     right <- compileExpr expr2
     nextRegister <- getNextRegisterCounter
     case (type' left) of
-        Int -> do
+        LLVMType Int -> do
             let result = (LLVMVariable {
-                type' = Int,
+                type' = LLVMType Int,
                 address = LLVMAddressRegister nextRegister,
                 blockLabel = currentLabel store,
                 ident = Nothing
             })
             emit (Operation left (AddBinOp addOp) right result)
             return result
-        Str -> do
+        LLVMType Str -> do
             let result = (LLVMVariable {
-                type' = Str,
+                type' = LLVMType Str,
                 address = LLVMAddressRegister nextRegister,
                 blockLabel = currentLabel store,
                 ident = Nothing
@@ -529,7 +529,7 @@ compileExpr (ERel expr1 relOp expr2) = do
     right <- compileExpr expr2
     nextRegister <- getNextRegisterCounter
     let result = (LLVMVariable {
-        type' = Int,
+        type' = LLVMType Int,
         address = LLVMAddressRegister nextRegister,
         blockLabel = currentLabel store,
         ident = Nothing
@@ -542,7 +542,7 @@ compileExpr (EAnd expr1 expr2) = do
     right <- compileExpr expr2
     nextRegister <- getNextRegisterCounter
     let result = (LLVMVariable {
-        type' = Int,
+        type' = LLVMType Int,
         address = LLVMAddressRegister nextRegister,
         blockLabel = currentLabel store,
         ident = Nothing
@@ -555,7 +555,7 @@ compileExpr (EOr expr1 expr2) = do
     right <- compileExpr expr2
     nextRegister <- getNextRegisterCounter
     let result = (LLVMVariable {
-        type' = Int,
+        type' = LLVMType Int,
         address = LLVMAddressRegister nextRegister,
         blockLabel = currentLabel store,
         ident = Nothing
@@ -583,14 +583,6 @@ getVar ident = do
     varsMap <- asks vars
     return $ fromJust $ Map.lookup ident varsMap
 
--- show
-showTypeInLLVM :: Type -> String
-showTypeInLLVM Void = "void"
-showTypeInLLVM Int = "i32"
-showTypeInLLVM Str = "i8*"
-showTypeInLLVM Bool = "i1"
-showTypeInLLVM _ = ""
-
 showIdent :: Ident -> String
 showIdent (Ident s) = s
 
@@ -606,4 +598,36 @@ showBlocks [] = ""
 showBlocks (x:xs) = showBlock x ++ showBlocks xs
 
 showBlock :: LLVMBlock -> String
-showBlock block = printf("; <label>:%s\n\t%s\n") (show $ label block) (intercalate "\n\t" (map show (code block)))
+showBlock block = printf("L%s:\n\t%s\n") (show $ label block) (intercalate "\n\t" (map printLLVMInstruction (code block)))
+
+
+showTypeInLLVM :: Type -> String
+showTypeInLLVM Void = "void"
+showTypeInLLVM Int = "i32"
+showTypeInLLVM Str = "i8*"
+showTypeInLLVM Bool = "i1"
+showTypeInLLVM _ = ""
+
+-- I dont want to do this in typeclass SHOW cause I need additional info for debuging for optimizations
+printLLVMType :: LLVMType -> String
+printLLVMType (LLVMType type') = showTypeInLLVM type'
+printLLVMType (LLVMTypePointer t) = (printLLVMType t) ++ "*"
+
+printLLVMVarType :: LLVMVariable -> String
+printLLVMVarType = printLLVMType . type'
+
+printLLVMAddress :: LLVMAddress -> String
+printLLVMAddress LLVMAddressVoid = ""
+printLLVMAddress (LLVMAddressImmediate integer) = show integer
+printLLVMAddress (LLVMAddressRegister label) = printf("%%%s") (show label)
+printLLVMAddress (LLVMAddressString str int) = printf("TODO")
+
+printLLVMVarAddress :: LLVMVariable -> String
+printLLVMVarAddress = printLLVMAddress . address
+
+printLLVMInstruction :: LLVMInstruction -> String
+printLLVMInstruction ReturnVoid = "ret void"
+printLLVMInstruction (Return llvmVariable) = printf ("ret %s %s") (printLLVMVarType llvmVariable) (printLLVMVarAddress llvmVariable)
+printLLVMInstruction (Branch label) = printf ("br %%%s") (show label)
+
+printLLVMInstruction instr = show instr
