@@ -7,7 +7,7 @@ L0:
 	%3 = load i32, i32* %1
 	%4 = load i32, i32* %2
 	Operation (LLVMVariable {type' = LLVMType Int, address = LLVMAddressRegister 3, blockLabel = 0, ident = Just (Ident "i")}) (RelBinOp LTH) (LLVMVariable {type' = LLVMType Int, address = LLVMAddressRegister 4, blockLabel = 0, ident = Just (Ident "j")}) (LLVMVariable {type' = LLVMType Bool, address = LLVMAddressRegister 5, blockLabel = 0, ident = Nothing})
-	br i1 %5, label 1, label 2
+	br i1 %5, label %L1, label %L2
 L1:
 	ret i32 5
 L2:

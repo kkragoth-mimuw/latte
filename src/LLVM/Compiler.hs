@@ -637,8 +637,8 @@ printLLVMInstruction :: LLVMInstruction -> String
 printLLVMInstruction ReturnVoid = "ret void"
 printLLVMInstruction (Alloca llvmVariable) = printf "%s = alloca %s" (printLLVMVarAddress llvmVariable) (printLLVMType $ dereferencePointer $ type' llvmVariable)
 printLLVMInstruction (Return llvmVariable) = printf ("ret %s %s") (printLLVMVarType llvmVariable) (printLLVMVarAddress llvmVariable)
-printLLVMInstruction (Branch label) = printf ("br %%%s") (show label)
-printLLVMInstruction (BranchConditional v l1 l2) = printf ("br %s %s, label %%%s, label %%%s") (printLLVMVarType v) (printLLVMVarAddress v) (show l1) (show l2)
+printLLVMInstruction (Branch label) = printf ("br %%L%s") (show label)
+printLLVMInstruction (BranchConditional v l1 l2) = printf ("br %s %s, label %%L%s, label %%L%s") (printLLVMVarType v) (printLLVMVarAddress v) (show l1) (show l2)
 printLLVMInstruction (MemoryStore s t) = printf ("store %s %s, %s %s") (printLLVMVarType s) (printLLVMVarAddress s) (printLLVMVarType t) (printLLVMVarAddress t)
 printLLVMInstruction (Load r v) = printf ("%s = load %s, %s %s") (printLLVMVarAddress r) (printLLVMVarType r) (printLLVMVarType v) (printLLVMVarAddress v)
 printLLVMInstruction instr = show instr
