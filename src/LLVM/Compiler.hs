@@ -60,7 +60,7 @@ initStore = Store {
     currentLabel = 0,
     functions = Map.empty,
     labelCounter = 0,
-    registerCounter = 0,
+    registerCounter = -1,
     functionBlocks = Map.empty,
     stringsMap = Map.empty,
     initBlock = 0
@@ -160,6 +160,7 @@ compileFnDef (FnDef type' ident args block) = do
         currentFunction = ident,
         currentLabel = 0,
         labelCounter = 0,
+        registerCounter = -1,
         functionBlocks = Map.insert ident (Map.fromList [(0, (LLVMBlock { label = 0, code = [], inEdges = [], outEdges = []} ))]) (functionBlocks store),
         initBlock = 1
     })
@@ -655,9 +656,9 @@ printLLVMInstruction (Operation l op r result) = case op of
     (OrOp) -> printf ("%s = or %s %s, %s") (printLLVMVarAddress result) (printLLVMVarType result) (printLLVMVarAddress l) (printLLVMVarAddress r)
     (XorOp) -> printf ("%s = xor %s %s, %s") (printLLVMVarAddress result) (printLLVMVarType result) (printLLVMVarAddress l) (printLLVMVarAddress r)
     (RelBinOp relOp) -> case relOp of
-        (LTH) -> printf ("%s = icmp slt %s %s, %s") (printLLVMVarAddress result) (printLLVMVarType result) (printLLVMVarAddress l) (printLLVMVarAddress r)
-        (LE) -> printf ("%s = icmp sle %s %s, %s") (printLLVMVarAddress result) (printLLVMVarType result) (printLLVMVarAddress l) (printLLVMVarAddress r)
-        (GTH) -> printf ("%s = icmp sgt %s %s, %s") (printLLVMVarAddress result) (printLLVMVarType result) (printLLVMVarAddress l) (printLLVMVarAddress r)
-        (GE) -> printf ("%s = icmp sge %s %s, %s") (printLLVMVarAddress result) (printLLVMVarType result) (printLLVMVarAddress l) (printLLVMVarAddress r)
-        (NE) -> printf ("%s = icmp ne %s %s, %s") (printLLVMVarAddress result) (printLLVMVarType result) (printLLVMVarAddress l) (printLLVMVarAddress r)
-        (EQU) -> printf ("%s = icmp eq %s %s, %s") (printLLVMVarAddress result) (printLLVMVarType result) (printLLVMVarAddress l) (printLLVMVarAddress r)
+        (LTH) -> printf ("%s = icmp slt %s %s, %s") (printLLVMVarAddress result) (printLLVMVarType l) (printLLVMVarAddress l) (printLLVMVarAddress r)
+        (LE) -> printf ("%s = icmp sle %s %s, %s") (printLLVMVarAddress result) (printLLVMVarType l) (printLLVMVarAddress l) (printLLVMVarAddress r)
+        (GTH) -> printf ("%s = icmp sgt %s %s, %s") (printLLVMVarAddress result) (printLLVMVarType l) (printLLVMVarAddress l) (printLLVMVarAddress r)
+        (GE) -> printf ("%s = icmp sge %s %s, %s") (printLLVMVarAddress result) (printLLVMVarType l) (printLLVMVarAddress l) (printLLVMVarAddress r)
+        (NE) -> printf ("%s = icmp ne %s %s, %s") (printLLVMVarAddress result) (printLLVMVarType l) (printLLVMVarAddress l) (printLLVMVarAddress r)
+        (EQU) -> printf ("%s = icmp eq %s %s, %s") (printLLVMVarAddress result) (printLLVMVarType l) (printLLVMVarAddress l) (printLLVMVarAddress r)
