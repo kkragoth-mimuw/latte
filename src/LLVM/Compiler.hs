@@ -195,8 +195,10 @@ compileFnDef (FnDef type' ident args block) = do
     functionBlocksMap <- gets functionBlocks
     let blockMap = fromJust $ Map.lookup ident functionBlocksMap
     -- TODO
-    optimizedBlockMap <- optimizeBlockMapReturn blockMap
-    -- let optimizedBlockMap = blockMap -- noOptimize
+    -- optimizedBlockMap <- optimizeBlockMapReturn blockMap
+
+    let optimizedBlockMap = blockMap -- noOptimize
+
     modify (\store -> (store {
         functionBlocks = Map.insert ident (optimizedBlockMap) functionBlocksMap
     }))
@@ -204,6 +206,11 @@ compileFnDef (FnDef type' ident args block) = do
     -- TODO OPTIMIZE PHI BLOCK
 
     store <- get
+    
+    liftIO $ putStrLn $ "; " ++ "Function Label Skip Map" ++ (show ident)
+    liftIO $ putStrLn ("; " ++ (show $ fromJust $ Map.lookup (currentFunction store) (functionsLabelFollowUp store)))
+    liftIO $ putStrLn $ ""
+
     let functionDef = printf ("define %s @%s(%s) {\n") (showTypeInLLVM type') (showIdent ident) (showArgs args)
     let blockCode = showBlocks (Map.elems $ fromJust $ Map.lookup (ident) (functionBlocks store))
 
@@ -647,7 +654,8 @@ compileExpr (EAnd expr1 expr2) = do
     endLabel <- getNewLabel
 
     emitInSpecificBlock previousLabel (BranchConditional left middleLabel endLabel)
-    emitInSpecificBlock middleLabel (Branch endLabel)
+    middleLabelFollowUp <- getLabelFollowUp middleLabel
+    emitInSpecificBlock middleLabelFollowUp (Branch endLabel)
 
     nextRegister <- getNextRegisterCounter
     let result = (LLVMVariable {
@@ -680,7 +688,9 @@ compileExpr (EOr expr1 expr2) = do
     endLabel <- getNewLabel
 
     emitInSpecificBlock previousLabel (BranchConditional left endLabel middleLabel)
-    emitInSpecificBlock middleLabel (Branch endLabel)
+    
+    middleLabelFollowUp <- getLabelFollowUp middleLabel
+    emitInSpecificBlock middleLabelFollowUp (Branch endLabel)
 
     nextRegister <- getNextRegisterCounter
     let result = (LLVMVariable {
@@ -808,7 +818,8 @@ printLLVMInstruction (Operation l op r result) = case op of
 printLLVMInstruction (Phi v vars) = printf ("%s = phi %s %s") (printLLVMVarAddress v) (printLLVMVarType v) (printPhiVars vars)
 
 printPhiVars :: [LLVMVariable] -> String
-printPhiVars vars = intercalate (",") (map (\var -> (printf ("[ %s, %s ]") (printLLVMVarAddress var) (printLLVMVarLabel var))) vars)
+printPhiVars vars = intercalate (", ") (map (\var -> (printf ("[ %s, %%%s ]") (printLLVMVarAddress var) (printLLVMVarLabel var))) vars)
+
 predefinedFunctions :: [(Ident, Type)]
 predefinedFunctions = ([
         (Ident "printInt", (Fun Void [Int])),

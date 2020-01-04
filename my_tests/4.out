@@ -1,0 +1,41 @@
+; Function Label Skip MapIdent "main"
+; fromList [(0,4),(1,3)]
+
+declare void @printInt(i32)
+declare void @printString(i8*)
+declare void @error()
+declare i32 @readInt()
+declare i8* @readString()
+declare i8* @__concatStrings(i8*, i8*)
+
+@s2 = private constant [3 x i8] c"no\00"
+@s1 = private constant [4 x i8] c"yes\00"
+
+define i32 @main() {
+L0:
+	%r0 = icmp slt i32 1, 2
+	br i1 %r0, label %L1, label %L4
+L1:
+	%r1 = icmp slt i32 2, 3
+	br i1 %r1, label %L2, label %L3
+L2:
+	%r2 = icmp slt i32 3, 4
+	br label %L3
+L3:
+	%r3 = phi i1 [ %r1, %L1 ], [ %r2, %L2 ]
+	br label %L4
+L4:
+	%r4 = phi i1 [ %r0, %L0 ], [ %r3, %L1 ]
+	br i1 %r4, label %L5, label %L6
+L5:
+	%r5 = bitcast [4 x i8]* @s1 to i8*
+	call void @printString(i8* %r5)
+	br label %L7
+L6:
+	%r6 = bitcast [3 x i8]* @s2 to i8*
+	call void @printString(i8* %r6)
+	br label %L7
+L7:
+	ret i32 0
+}
+
