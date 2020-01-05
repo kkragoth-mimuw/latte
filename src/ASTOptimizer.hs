@@ -43,8 +43,21 @@ initStore = Store {
 
 instance Optimizable Program where
     optimize program@(Program topdefs) = do
+        forM_ topdefs fillFunctionInformation
         optimizedTopDefs <- mapM optimizeTopDef topdefs
         return $ Program optimizedTopDefs
+
+fillFunctionInformation :: TopDef -> OM ()
+fillFunctionInformation (FnDef type' ident args block) = do
+    let hasEffect = case type' of
+            Void -> functionHasIO block
+            _v -> True
+    modify (\store -> store {
+        functions = Map.insert ident ((Fun type' (map (\(Arg t _) -> t) args)), True) (functions store)
+    })
+
+functionHasIO :: Block -> Bool
+functionHasIO _ = True
 
 optimizeTopDef :: TopDef -> OM TopDef
 optimizeTopDef topDef = do
