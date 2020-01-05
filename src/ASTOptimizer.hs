@@ -77,6 +77,11 @@ optimizeStmts (x:xs) = do
     return $ [optimizedX] ++ optimizedXS
 
 optimizeStmt :: Stmt -> OM Stmt
+optimizeStmt s@(BStmt (Block stmts)) = do
+    stmtso <- optimizeStmts stmts
+    case stmtso of
+        [] -> return Empty
+        _ -> return s
 optimizeStmt s@(SExp e) = do
     -- todo: check if theres func app with side effects
     eo <- optimizeExpr e
