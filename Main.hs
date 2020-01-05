@@ -7,6 +7,8 @@ import           Data.Typeable
 import           System.Environment            (getArgs, getProgName)
 import           System.Exit                   (exitFailure, exitSuccess)
 import           System.IO                     (hGetContents, stdin)
+import           System.FilePath
+import           System.Process
 
 import           AbsLatte
 import           LexLatte
@@ -30,11 +32,11 @@ putStrV :: Verbosity -> String -> IO ()
 putStrV v s = when (v > 1) $ putStrLn s
 
 runFile :: Verbosity -> ParseFun -> FilePath -> IO ()
-runFile v p f = putStrLn f >> readFile f >>= run v p
+runFile v p f = readFile f >>= \s -> run v p s (Just f)
 
-run :: Verbosity -> ParseFun -> String -> IO ()
-run _ _ [] = exitSuccess
-run v p s = let ts = myLLexer s in case p ts of
+run :: Verbosity -> ParseFun -> String -> Maybe FilePath -> IO ()
+run _ _ [] _ = exitSuccess
+run v p s filePathM = let ts = myLLexer s in case p ts of
            Bad s    -> do putStrLn "ERROR\n"
                           putStrLn "\nParse failed...\n"
                           exitFailure
@@ -51,7 +53,19 @@ run v p s = let ts = myLLexer s in case p ts of
                                           putStrLn "ERROR\n"
                                           putStrLn error
                                         Right result -> do
-                                          putStr (result)
+                                          case filePathM of
+                                            Nothing -> putStr (result)
+                                            Just f -> do
+                                              
+                                              let lliFile = (dropExtension f) <.> "ll"
+                                              let bcFile = (dropExtension f) <.> "bc"
+                                              let bcFileTmp = (dropExtension f) <.> "bcTMP"
+                                              writeFile lliFile result
+                                              callCommand $ "llvm-as -o " ++ (show bcFileTmp) ++ " " ++ (show lliFile)
+                                              callCommand $ "llvm-link -o " ++ (show bcFile) ++ " lib/runtime.bc " ++ (show bcFileTmp)
+                                              callCommand $ "rm -f " ++ (show bcFileTmp)
+
+                                              putStrLn "OK"
                                      
 
 
@@ -75,7 +89,7 @@ main = do
   args <- getArgs
   case args of
     ["--help"] -> usage
-    []         -> getContents >>= run 2 pProgram
+    []         -> getContents >>= (\s -> run 2 pProgram s Nothing)
     "-s":fs    -> mapM_ (runFile 0 pProgram) fs
     fs         -> mapM_ (runFile 2 pProgram) fs
 

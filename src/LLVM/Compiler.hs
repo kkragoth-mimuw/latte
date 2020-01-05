@@ -2,6 +2,7 @@
 
 -- TODO: https://buildmedia.readthedocs.org/media/pdf/mapping-high-level-constructs-to-llvm-ir/latest/mapping-high-level-constructs-to-llvm-ir.pdf
 -- on mac:  /usr/local/opt/llvm/bin/llvm-as
+-- export PATH=$PATH:/usr/local/opt/llvm/bin/llvm-as
 
 -- TODO:
 -- TESTING
