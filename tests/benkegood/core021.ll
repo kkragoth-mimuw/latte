@@ -9,8 +9,6 @@ declare i8* @__concatStrings(i8*, i8*)
 
 define i32 @main() {
 L0:
-	br i1 1, label %L1, label %L2
-L1:
 	call void @printInt(i32 1)
 	ret i32 0
 }

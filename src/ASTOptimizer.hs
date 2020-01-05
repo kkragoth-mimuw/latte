@@ -68,15 +68,71 @@ optimizeTopDef (FnDef type' ident args block@(Block stmts)) = do
 
 optimizeStmts :: [Stmt] -> OM [Stmt]
 optimizeStmts [] = return []
+optimizeStmts (x@(Ret e):_) = return [x]
+optimizeStmts (x@(VRet):_) = return [x]
+optimizeStmts(Empty:xs) = optimizeStmts xs
 optimizeStmts (x:xs) = do
     optimizedX <- optimizeStmt x 
     optimizedXS <- optimizeStmts xs
     return $ [optimizedX] ++ optimizedXS
 
 optimizeStmt :: Stmt -> OM Stmt
+optimizeStmt s@(SExp e) = do
+    -- todo: check if theres func app with side effects
+    eo <- optimizeExpr e
+    return (SExp eo)
+
+optimizeStmt s@(Cond e sTrue) = do
+    eo <- optimizeExpr e
+    case eo of
+        ELitTrue -> return sTrue
+        ELitFalse -> return Empty
+        _ -> return s
+
+optimizeStmt s@(CondElse e sTrue sFalse) = do
+    eo <- optimizeExpr e
+    case eo of
+        ELitTrue -> return sTrue
+        ELitFalse -> return sFalse
+        _ -> return s
+optimizeStmt s@(While e stmts) = do
+    eo <- optimizeExpr e
+    case eo of
+        ELitFalse -> return Empty
+        _ -> return s
 optimizeStmt s = return s
 
 optimizeExpr :: Expr -> OM Expr
+optimizeExpr e@(Not e1) = do
+    eo1 <- optimizeExpr e1
+
+    case eo1 of
+        (ELitFalse) -> return ELitTrue
+        (ELitTrue) -> return ELitFalse
+        _ -> return e
+optimizeExpr e@(EMul e1 mulOp e2) = do
+    eo1 <- optimizeExpr e1
+    eo2 <- optimizeExpr e2
+
+    case (eo1, eo2) of
+        (ELitInt i, ELitInt j) -> do
+                let func = case mulOp of
+                        Times -> (*)
+                        Div -> (div)
+                        Mod -> (mod)
+                return $ ELitInt (i `func` j)
+        _ -> return e
+optimizeExpr e@(EAdd e1 addOp e2) = do
+    eo1 <- optimizeExpr e1
+    eo2 <- optimizeExpr e2
+
+    case (eo1, eo2) of
+        (ELitInt i, ELitInt j) -> do
+                let func = case addOp of
+                        Plus -> (+)
+                        Minus -> (-)
+                return $ ELitInt (i `func` j)
+        _ -> return e
 optimizeExpr e@(ERel e1 EQU e2) = do
     eo1 <- optimizeExpr e1
     eo2 <- optimizeExpr e2
