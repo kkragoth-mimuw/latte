@@ -1,17 +1,19 @@
 # PATH=$PATH:/usr/local/opt/llvm/bin/
 import os
 import subprocess
+import glob
 from enum import Enum
 
 from box import Box
-import glob
 from colorama import Fore, Back, Style
 
+
 config = Box({
-    # "WHITELIST_TESTS": [],
-    # "BLACKLIST_TESTS": [],
+    "WHITELIST_TESTS": ['core001.lat'],
+    "BLACKLIST_TESTS": [],
     "PATH": "tests/benkegood/"
 })
+
 
 class TestResult(Enum):
     OK = 1
@@ -19,14 +21,7 @@ class TestResult(Enum):
     LLI_ERROR = 3
     OUTPUT_ERROR = 4
 
-def run_tests_good():
-    correctTests = []
-    incorrectTests = Box({
-        "compilation_error": [],
-        "lli_error": [],
-        "output_error": []
-    })
-
+def gather_all_tests_in_directory(dir):
     tests = []
     for file in os.listdir(config.PATH):
         if file.endswith(".lat"):
@@ -34,9 +29,15 @@ def run_tests_good():
 
     tests = sorted(tests, key=lambda x: os.path.splitext(x)[0])
 
-    # tests = ([f for f in glob.glob(config.PATH + "core***.lat")])
+    return tests
 
-    print(tests)
+def run_tests_good(tests):
+    correctTests = []
+    incorrectTests = Box({
+        "compilation_error": [],
+        "lli_error": [],
+        "output_error": []
+    })
 
     for test in tests:
         res = run_test_good(test)
@@ -53,7 +54,7 @@ def run_tests_good():
     print(f'{Fore.YELLOW}Tests summary{Style.RESET_ALL}')
     print(f'Correct tests: {Fore.GREEN} {len(correctTests)} {Style.RESET_ALL}')
     print(f'Incorrect tests: {Fore.RED} {len(incorrectTests.compilation_error) + len(incorrectTests.lli_error) + len(incorrectTests.output_error)} {Style.RESET_ALL}')
-    print(f'problematic tests:')
+    print(f'List of problematic tests:')
     if (len(incorrectTests.compilation_error) > 0):
         print(f'compilation errors: {incorrectTests.compilation_error}')
     if (len(incorrectTests.lli_error) > 0):
@@ -92,4 +93,10 @@ def run_test_good(test) -> TestResult:
         return TestResult.OUTPUT_ERROR
 
 if __name__ == "__main__":
-    run_tests_good()
+    tests = []
+    if len(config.WHITELIST_TESTS) > 0:
+        tests = config.WHITELIST_TESTS
+    else:
+        tests = gather_all_tests_in_directory(config.PATH)
+
+    run_tests_good(tests)

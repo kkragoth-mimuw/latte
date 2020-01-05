@@ -448,7 +448,7 @@ defaultVariable Bool = do
         blockLabel = currentLabel store,
         ident = Nothing
     })
-defaultVariable Str = error "defaultStr not implemented"
+defaultVariable Str = compileExpr (EString "")
 
 compileExpr :: Expr -> GenM LLVMVariable
 compileExpr (EVar ident) = do
@@ -812,6 +812,9 @@ printLLVMInstruction (CallVoid (Ident fnName) args) = printf ("call void @%s(%s)
 printLLVMInstruction (Operation l op r result) = case op of
     (AddBinOp Plus) -> printf ("%s = add %s %s, %s") (printLLVMVarAddress result) (printLLVMVarType result) (printLLVMVarAddress l) (printLLVMVarAddress r)
     (AddBinOp Minus) -> printf ("%s = sub %s %s, %s") (printLLVMVarAddress result) (printLLVMVarType result) (printLLVMVarAddress l) (printLLVMVarAddress r)
+    (MulBinOp Times) -> printf ("%s = mul %s %s, %s") (printLLVMVarAddress result) (printLLVMVarType result) (printLLVMVarAddress l) (printLLVMVarAddress r)
+    (MulBinOp Div) -> printf ("%s = sdiv %s %s, %s") (printLLVMVarAddress result) (printLLVMVarType result) (printLLVMVarAddress l) (printLLVMVarAddress r)
+    (MulBinOp Mod) -> printf ("%s = srem %s %s, %s") (printLLVMVarAddress result) (printLLVMVarType result) (printLLVMVarAddress l) (printLLVMVarAddress r)
     (AndOp) -> printf ("%s = and %s %s, %s") (printLLVMVarAddress result) (printLLVMVarType result) (printLLVMVarAddress l) (printLLVMVarAddress r)
     (OrOp) -> printf ("%s = or %s %s, %s") (printLLVMVarAddress result) (printLLVMVarType result) (printLLVMVarAddress l) (printLLVMVarAddress r)
     (XorOp) -> printf ("%s = xor %s %s, %s") (printLLVMVarAddress result) (printLLVMVarType result) (printLLVMVarAddress l) (printLLVMVarAddress r)
