@@ -112,7 +112,6 @@ data LLVMInstruction = Alloca LLVMVariable
 
 data LLVMAddress = LLVMAddressVoid
     | LLVMAddressImmediate Integer
-    | LLVMAddressString String Integer
     | LLVMAddressNamedRegister String
     | LLVMAddressRegister Integer deriving (Show)
 
@@ -788,7 +787,6 @@ printLLVMAddress LLVMAddressVoid = ""
 printLLVMAddress (LLVMAddressImmediate integer) = show integer
 printLLVMAddress (LLVMAddressRegister label) = printf("%%r%s") (show label)
 printLLVMAddress (LLVMAddressNamedRegister strLabel) = printf("%%%s") (strLabel)
-printLLVMAddress (LLVMAddressString str int) = printf("TODO")
 
 printLLVMVarAddress :: LLVMVariable -> String
 printLLVMVarAddress = printLLVMAddress . address
