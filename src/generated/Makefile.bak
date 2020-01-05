@@ -10,8 +10,8 @@ all : TestLatte
 
 # Rules for building the parser.
 
-ErrM.hs LexLatte.x PrintLatte.hs ParLatte.y TestLatte.hs : ../Latte.cf
-	bnfc --haskell ../Latte.cf
+ErrM.hs LexLatte.x PrintLatte.hs ParLatte.y TestLatte.hs : ../grammar/Latte.cf
+	bnfc --haskell ../grammar/Latte.cf
 
 %.hs : %.y
 	happy --ghc --coerce --array --info $<

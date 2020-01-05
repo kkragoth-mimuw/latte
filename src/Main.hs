@@ -2,6 +2,7 @@ module Main where
 
 
 import           Control.Monad                 (when)
+import           Control.Exception
 import qualified Data.Map                      as Map
 import           Data.Typeable
 import           System.Environment            (getArgs, getProgName)
@@ -9,6 +10,7 @@ import           System.Exit                   (exitFailure, exitSuccess)
 import           System.IO                     (hGetContents, stdin)
 import           System.FilePath
 import           System.Process
+import           Text.Printf
 
 import           AbsLatte
 import           LexLatte
@@ -61,13 +63,18 @@ run v p s filePathM = let ts = myLLexer s in case p ts of
                                               let bcFile = (dropExtension f) <.> "bc"
                                               let bcFileTmp = (dropExtension f) <.> "bcTMP"
                                               writeFile lliFile result
-                                              callCommand $ "llvm-as -o " ++ (show bcFileTmp) ++ " " ++ (show lliFile)
-                                              callCommand $ "llvm-link -o " ++ (show bcFile) ++ " lib/runtime.bc " ++ (show bcFileTmp)
-                                              callCommand $ "rm -f " ++ (show bcFileTmp)
+                                              (do 
+                                                callCommand $ printf("llvm-as -o %s %s > /dev/null 2> /dev/null") (show bcFileTmp) (show lliFile)
+                                                callCommand $ printf("llvm-link -o %s lib/runtime.bc %s > /dev/null 2> /dev/null") (show bcFile) (show bcFileTmp)
+                                                callCommand $ printf("rm -f %s > /dev/null") (show bcFileTmp)
+                                                putStrLn "OK"
+                                                ) `catch` catchCallCommandException
 
-                                              putStrLn "OK"
-                                     
-
+catchCallCommandException :: IOException -> IO ()
+catchCallCommandException e = do
+  putStr "ERROR\n"
+  putStr $ show e
+  exitFailure
 
 showTree :: (Show a, Print a) => Int -> a -> IO ()
 showTree v tree

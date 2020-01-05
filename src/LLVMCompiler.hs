@@ -215,9 +215,9 @@ compileFnDef (FnDef type' ident args block@(Block stmts)) = do
 
     store <- get
     
-    liftIO $ putStrLn $ "; " ++ "Function Label Skip Map" ++ (show ident)
-    liftIO $ putStrLn ("; " ++ (show $ fromJust $ Map.lookup (currentFunction store) (functionsLabelFollowUp store)))
-    liftIO $ putStrLn $ ""
+    -- liftIO $ putStrLn $ "; " ++ "Function Label Skip Map" ++ (show ident)
+    -- liftIO $ putStrLn ("; " ++ (show $ fromJust $ Map.lookup (currentFunction store) (functionsLabelFollowUp store)))
+    -- liftIO $ putStrLn $ ""
 
     let functionDef = printf ("define %s @%s(%s) {\n") (showTypeInLLVM type') (showIdent ident) (showArgs args)
     let blockCode = showBlocks (Map.elems $ fromJust $ Map.lookup (ident) (functionBlocks store))
