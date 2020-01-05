@@ -34,11 +34,12 @@ initEnv = Env {
 }
 
 data Store = Store {
-    functions :: Map.Map Ident (Type, Bool)
+    -- functions :: Map.Map Ident (Type, Bool)
+    -- functionsOptimized :: Map.Map Ident (Block)
 }
 
 initStore = Store {
-    functions = Map.fromList (predefinedFunctions)
+    -- functions = Map.fromList (predefinedFunctions)
 }
 
 instance Optimizable Program where
@@ -48,16 +49,14 @@ instance Optimizable Program where
         return $ Program optimizedTopDefs
 
 fillFunctionInformation :: TopDef -> OM ()
-fillFunctionInformation (FnDef type' ident args block) = do
-    let hasEffect = case type' of
-            Void -> functionHasIO block
-            _v -> True
-    modify (\store -> store {
-        functions = Map.insert ident ((Fun type' (map (\(Arg t _) -> t) args)), True) (functions store)
-    })
-
-functionHasIO :: Block -> Bool
-functionHasIO _ = True
+fillFunctionInformation _ = return ()
+-- fillFunctionInformation (FnDef type' ident args block) = do
+--     let hasEffect = case type' of
+--             Void -> functionHasIO block
+--             _v -> True
+--     modify (\store -> store {
+--         functions = Map.insert ident ((Fun type' (map (\(Arg t _) -> t) args)), True) (functions store)
+--     })
 
 optimizeTopDef :: TopDef -> OM TopDef
 optimizeTopDef (FnDef Void ident args (Block [])) = do
@@ -189,12 +188,30 @@ optimizeExpr e@(EOr e1 e2) = do
         _ -> return e
 optimizeExpr e = return e
 
-predefinedFunctions :: [(Ident, (Type, Bool))]
-predefinedFunctions = ([
-        (Ident "printInt", ((Fun Void [Int]), True)),
-        (Ident "printString", ((Fun Void [Str]), True)),
-        (Ident "error", ((Fun Void []), True)),
-        (Ident "readInt", ((Fun Int []), True)),
-        (Ident "readString", ((Fun Str []), True)),
-        (Ident "__concatStrings", ((Fun Str [Str, Str]), True))
-    ])
+-- predefinedFunctions :: [(Ident, (Type, Bool))]
+-- predefinedFunctions = ([
+--         (Ident "printInt", ((Fun Void [Int]), True)),
+--         (Ident "printString", ((Fun Void [Str]), True)),
+--         (Ident "error", ((Fun Void []), True)),
+--         (Ident "readInt", ((Fun Int []), True)),
+--         (Ident "readString", ((Fun Str []), True)),
+--         (Ident "__concatStrings", ((Fun Str [Str, Str]), True))
+--     ])
+
+---
+-- exprHasPossibleIO :: Expr -> Bool
+-- exprHasPossibleIO (EApp (Ident fnName) args) = (fnName `elem` ([
+--         "printInt",
+--         "printString",
+--         "error",
+--         "readInt",
+--         "readString"
+--     ])) || any exprHasPossibleIO args
+-- exprHasPossibleIO (Neg e) = exprHasPossibleIO e
+-- exprHasPossibleIO (Not e) = exprHasPossibleIO e
+-- exprHasPossibleIO (EMul e1 _ e2) = exprHasPossibleIO e1 || exprHasPossibleIO e2
+-- exprHasPossibleIO (EAdd e1 _ e2) = exprHasPossibleIO e1 || exprHasPossibleIO e2
+-- exprHasPossibleIO (ERel e1 _ e2) = exprHasPossibleIO e1 || exprHasPossibleIO e2
+-- exprHasPossibleIO (EAnd e1 e2) = exprHasPossibleIO e1 || exprHasPossibleIO e2
+-- exprHasPossibleIO (EOr e1 e2) = exprHasPossibleIO e1 || exprHasPossibleIO e2
+-- functionHasIOExpr _ = False
