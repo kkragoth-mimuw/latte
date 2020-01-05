@@ -98,7 +98,7 @@ ListItem : Item { (:[]) $1 } | Item ',' ListItem { (:) $1 $3 }
 Type :: { Type }
 Type : 'int' { AbsLatte.Int }
      | 'string' { AbsLatte.Str }
-     | 'boolean' { AbsLatte.Boolean }
+     | 'boolean' { AbsLatte.Bool }
      | 'void' { AbsLatte.Void }
 ListType :: { [Type] }
 ListType : {- empty -} { [] }

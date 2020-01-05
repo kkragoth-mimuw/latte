@@ -215,9 +215,9 @@ compileFnDef (FnDef type' ident args block@(Block stmts)) = do
 
     store <- get
     
-    -- liftIO $ putStrLn $ "; " ++ "Function Label Skip Map" ++ (show ident)
-    -- liftIO $ putStrLn ("; " ++ (show $ fromJust $ Map.lookup (currentFunction store) (functionsLabelFollowUp store)))
-    -- liftIO $ putStrLn $ ""
+    liftIO $ putStrLn $ "; " ++ "Function Label Skip Map" ++ (show ident)
+    liftIO $ putStrLn ("; " ++ (show $ fromJust $ Map.lookup (currentFunction store) (functionsLabelFollowUp store)))
+    liftIO $ putStrLn $ ""
 
     let functionDef = printf ("define %s @%s(%s) {\n") (showTypeInLLVM type') (showIdent ident) (showArgs args)
     let blockCode = showBlocks (Map.elems $ fromJust $ Map.lookup (ident) (functionBlocks store))
@@ -442,10 +442,10 @@ defaultVariable Int = do
         blockLabel = currentLabel store,
         ident = Nothing
     })
-defaultVariable Bool = do
+defaultVariable Boolean = do
     store <- get
     return $ (LLVMVariable {
-        type' = LLVMType Bool,
+        type' = LLVMType Boolean,
         address = LLVMAddressImmediate 0,
         blockLabel = currentLabel store,
         ident = Nothing
@@ -477,7 +477,7 @@ compileExpr (ELitInt i) = do
 compileExpr(ELitTrue) = do
     blockLabel <- gets currentLabel
     return LLVMVariable {
-        type' = LLVMType Bool,
+        type' = LLVMType Boolean,
         address = LLVMAddressImmediate 1,
         blockLabel = blockLabel,
         ident = Nothing
@@ -485,7 +485,7 @@ compileExpr(ELitTrue) = do
 compileExpr(ELitFalse) = do
     blockLabel <- gets currentLabel
     return LLVMVariable {
-        type' = LLVMType Bool,
+        type' = LLVMType Boolean,
         address = LLVMAddressImmediate 0,
         blockLabel = blockLabel,
         ident = Nothing
@@ -556,7 +556,7 @@ compileExpr (Not expr) = do
     trueVar <- compileExpr (ELitTrue)
     nextRegister <- getNextRegisterCounter
     let result = (LLVMVariable {
-        type' = LLVMType Bool,
+        type' = LLVMType Boolean,
         address = LLVMAddressRegister nextRegister,
         blockLabel = currentLabel store,
         ident = Nothing
@@ -606,7 +606,7 @@ compileExpr (ERel expr1 relOp expr2) = do
     right <- compileExpr expr2
     nextRegister <- getNextRegisterCounter
     let result = (LLVMVariable {
-        type' = LLVMType Bool,
+        type' = LLVMType Boolean,
         address = LLVMAddressRegister nextRegister,
         blockLabel = currentLabel store,
         ident = Nothing
@@ -619,7 +619,7 @@ compileExpr (ERel expr1 relOp expr2) = do
 --     right <- compileExpr expr2
 --     nextRegister <- getNextRegisterCounter
 --     let result = (LLVMVariable {
---         type' = LLVMType Bool,
+--         type' = LLVMType Boolean,
 --         address = LLVMAddressRegister nextRegister,
 --         blockLabel = currentLabel store,
 --         ident = Nothing
@@ -632,7 +632,7 @@ compileExpr (ERel expr1 relOp expr2) = do
 --     right <- compileExpr expr2
 --     nextRegister <- getNextRegisterCounter
 --     let result = (LLVMVariable {
---         type' = LLVMType Bool,
+--         type' = LLVMType Boolean,
 --         address = LLVMAddressRegister nextRegister,
 --         blockLabel = currentLabel store,
 --         ident = Nothing
@@ -668,7 +668,7 @@ compileExpr (EAnd expr1 expr2) = do
     blockLabel <- gets currentLabel
     nextRegister <- getNextRegisterCounter
     let result = (LLVMVariable {
-        type' = LLVMType Bool,
+        type' = LLVMType Boolean,
         address = LLVMAddressRegister nextRegister,
         blockLabel = blockLabel,
         ident = Nothing
@@ -704,7 +704,7 @@ compileExpr (EOr expr1 expr2) = do
     blockLabel <- gets currentLabel
     nextRegister <- getNextRegisterCounter
     let result = (LLVMVariable {
-        type' = LLVMType Bool,
+        type' = LLVMType Boolean,
         address = LLVMAddressRegister nextRegister,
         blockLabel = blockLabel,
         ident = Nothing
@@ -773,7 +773,7 @@ showTypeInLLVM :: Type -> String
 showTypeInLLVM Void = "void"
 showTypeInLLVM Int = "i32"
 showTypeInLLVM Str = "i8*"
-showTypeInLLVM Bool = "i1"
+showTypeInLLVM Boolean = "i1"
 showTypeInLLVM _ = ""
 
 dereferencePointer :: LLVMType -> LLVMType

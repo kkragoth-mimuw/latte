@@ -46,7 +46,7 @@ transType :: Type -> Result
 transType x = case x of
   Int -> failure x
   Str -> failure x
-  Boolean -> failure x
+  Bool -> failure x
   Void -> failure x
   Fun type_ types -> failure x
 transExpr :: Expr -> Result

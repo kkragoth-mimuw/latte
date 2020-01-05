@@ -54,7 +54,7 @@ Int.       Type ::= "int" ;
 
 Str.       Type ::= "string" ;
 
-Bool.      Type ::= "boolean" ;
+Boolean.      Type ::= "boolean" ;
 
 Void.      Type ::= "void" ;
 

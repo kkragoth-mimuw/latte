@@ -605,7 +605,7 @@ happyReduction_32 happy_x_1
 happyReduce_33 = happySpecReduce_1  13# happyReduction_33
 happyReduction_33 happy_x_1
 	 =  happyIn17
-		 (AbsLatte.Bool
+		 (AbsLatte.Boolean
 	)
 
 happyReduce_34 = happySpecReduce_1  13# happyReduction_34

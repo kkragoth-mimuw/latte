@@ -5,6 +5,7 @@ import Control.Monad.Reader
 import qualified Data.Map as Map
 import Data.Char
 import Data.List
+import Data.Bool
 import Text.Printf
 
 import AbsLatte
@@ -106,7 +107,7 @@ prettyShowType :: Type -> String
 prettyShowType type_ = case type_ of
     Int   -> "int"
     Str   -> "string"
-    Bool  -> "bool"
+    Boolean  -> "Boolean"
     Void  -> "void"
 
 trimLeft :: String -> String
@@ -277,8 +278,8 @@ typecheckStmt (Cond expr stmt) = typecheckStmt (CondElse expr stmt (Empty))
 typecheckStmt (CondElse expr stmtTrue stmtFalse) = do
     exprType <- typecheckExprWithErrorLogging expr
 
-    unless (exprType == Bool)
-        (throwError $ initTypecheckError $ TCInvalidTypeExpectedType exprType Bool)
+    unless (exprType == Boolean)
+        (throwError $ initTypecheckError $ TCInvalidTypeExpectedType exprType Boolean)
 
     typecheckStmt stmtTrue
     typecheckStmt stmtFalse
@@ -286,8 +287,8 @@ typecheckStmt (CondElse expr stmtTrue stmtFalse) = do
 typecheckStmt (While expr stmt) = do
     conditionType <- typecheckExprWithErrorLogging expr
 
-    unless (conditionType == Bool)
-        (throwError $ initTypecheckError $ TCInvalidTypeExpectedType conditionType Bool)
+    unless (conditionType == Boolean)
+        (throwError $ initTypecheckError $ TCInvalidTypeExpectedType conditionType Boolean)
 
     typecheckStmt stmt
 
@@ -299,25 +300,25 @@ typecheckExprWithErrorLogging expr = typecheckExpr expr `catchError` (\typecheck
 typecheckExpr :: Expr -> TCM Type
 typecheckExpr (EString _) = return Str
 typecheckExpr (ELitInt _) = return Int
-typecheckExpr (ELitTrue) = return Bool
-typecheckExpr (ELitFalse) = return Bool
+typecheckExpr (ELitTrue) = return Boolean
+typecheckExpr (ELitFalse) = return Boolean
 typecheckExpr (EOr expr1 expr2) = do
     (left, right) <- typecheckExpr2 expr1 expr2
     case (left, right) of
-        (Bool, Bool) -> return Bool
-        (Bool, x)    -> throwError $ initTypecheckError $ TCInvalidTypeExpectedType x Bool
-        (x, _)       -> throwError $ initTypecheckError $ TCInvalidTypeExpectedType x Bool
+        (Boolean, Boolean) -> return Boolean
+        (Boolean, x)    -> throwError $ initTypecheckError $ TCInvalidTypeExpectedType x Boolean
+        (x, _)       -> throwError $ initTypecheckError $ TCInvalidTypeExpectedType x Boolean
 typecheckExpr (EAnd expr1 expr2) = do
     (left, right) <- typecheckExpr2 expr1 expr2
     case (left, right) of
-        (Bool, Bool) -> return Bool
-        (Bool, x)    -> throwError $ initTypecheckError $ TCInvalidTypeExpectedType x Bool
-        (x, _)       -> throwError $ initTypecheckError $ TCInvalidTypeExpectedType x Bool
+        (Boolean, Boolean) -> return Boolean
+        (Boolean, x)    -> throwError $ initTypecheckError $ TCInvalidTypeExpectedType x Boolean
+        (x, _)       -> throwError $ initTypecheckError $ TCInvalidTypeExpectedType x Boolean
 typecheckExpr (Not expr) = do
     exprType <- typecheckExprWithErrorLogging expr
     case exprType of
-        Bool -> return Bool
-        x    -> throwError $ initTypecheckError $ TCInvalidTypeExpectedType x Bool
+        Boolean -> return Boolean
+        x    -> throwError $ initTypecheckError $ TCInvalidTypeExpectedType x Boolean
 typecheckExpr (Neg expr) = do
     exprType <- typecheckExprWithErrorLogging expr
     case exprType of
@@ -332,9 +333,9 @@ typecheckExpr (EMul exprLeft _ exprRight) = do
 typecheckExpr (ERel exprLeft op exprRight) = do
     (left, right) <- typecheckExpr2 exprLeft exprRight
     case (left, right, op) of
-        (Bool, Bool, EQU) -> return Bool
-        (Bool, Bool, NE) -> return Bool
-        (Int, Int, _) -> return Bool
+        (Boolean, Boolean, EQU) -> return Boolean
+        (Boolean, Boolean, NE) -> return Boolean
+        (Int, Int, _) -> return Boolean
         (Int, x, _)   -> throwError $ initTypecheckError $ TCInvalidTypeExpectedType x Int
         (x, _, _)     -> throwError $ initTypecheckError $ TCInvalidTypeExpectedType x Int
 typecheckExpr(EAdd expr1 addop expr2) = do
