@@ -17,8 +17,8 @@ import           PrintLatte
 import           SkelLatte
 
 
-import           Frontend (runTypecheck, pprintTypecheckerErrorMsg, initTCEnv)
-import           LLVM.Compiler
+import           Typechecker (runTypecheck, pprintTypecheckerErrorMsg, initTCEnv)
+import           LLVMCompiler
 
 import           ErrM
 
@@ -47,7 +47,7 @@ run v p s filePathM = let ts = myLLexer s in case p ts of
                               pprintTypecheckerErrorMsg error
                               exitFailure
                             Right _ -> do
-                                      compilerInfo <- runCompiler tree
+                                      compilerInfo <- runLLVMCompiler tree
                                       case compilerInfo of
                                         Left error -> do
                                           putStrLn "ERROR\n"

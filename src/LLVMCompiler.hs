@@ -17,7 +17,7 @@
 -- DUMMY FRONTEND OPTIMIZATIONS
 -- ADVANCED FRONTEND OPTIMIZATIONS
 
-module LLVM.Compiler where
+module LLVMCompiler where
 
 import           Control.Monad.Except
 import           Control.Monad.Reader
@@ -41,8 +41,8 @@ data CompilationError = CompilationErrorFunctionHasNoExplicitReturn Ident
 instance Show CompilationError where
     show (CompilationErrorFunctionHasNoExplicitReturn (Ident functionIdent)) = printf "Function %s has missing return!" functionIdent
 
-runCompiler :: (Compilable program) => program -> IO (Either String String)
-runCompiler program = do
+runLLVMCompiler :: (Compilable program) => program -> IO (Either String String)
+runLLVMCompiler program = do
     runInfo <- runStateT (runReaderT (runExceptT (compile program)) initEnv) initStore
     case runInfo of 
         (Left compilationError, store) -> return $ Left (show compilationError)

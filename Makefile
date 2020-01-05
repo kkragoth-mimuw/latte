@@ -1,14 +1,13 @@
 run:
-	ghc -o latte generated/*.hs src/LLVM/*.hs frontend.hs  Main.hs
+	ghc -o latc_llvm src/generated/*.hs src/*.hs
 wc:
 	find src -name '*.hs' | xargs wc -l
 generate_grammar:
-	mkdir -p generated && \
-	cd generated && \
-	bnfc -m ../grammar/Latte.cf
-	cd generated && make && \
+	mkdir -p src/generated && \
+	cd src/generated && \
+	bnfc -m ../Latte.cf
+	cd src/generated && make && \
 	rm TestLatte.hs
-
 .PHONY: clean
 clean:
-	rm -rf generated
+	rm -rf src/*.o src/*.hi

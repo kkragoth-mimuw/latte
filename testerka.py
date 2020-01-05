@@ -71,7 +71,7 @@ def print_summary(correctTests, incorrectTests):
 
 def run_test_good(test) -> TestResult:
     print(f'Running test {test}..')
-    result = subprocess.run(["./latte", config.PATH + test])
+    result = subprocess.run(["./latc_llvm", config.PATH + test])
     if result.returncode != 0:
         return TestResult.COMPILATION_ERROR
 

@@ -1,5 +1,4 @@
--- https://www.youtube.com/watch?v=__jiz18l84U
-module Frontend where
+module Typechecker where
 
 import Control.Monad.Except
 import Control.Monad.Reader
