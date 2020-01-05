@@ -6,6 +6,13 @@
 
 -- TODO:
 -- TESTING
+-- Tests summary 5 Jan
+-- Correct tests:  16
+-- Incorrect tests:  6
+-- problematic tests:
+-- compilation errors: ['core001.lat', 'core010.lat', 'core012.lat', 'core021.lat']
+-- lli errors: ['core003.lat', 'core020.lat']
+
 -- PHI_OPTIMIZATIONS
 -- DUMMY FRONTEND OPTIMIZATIONS
 -- ADVANCED FRONTEND OPTIMIZATIONS
