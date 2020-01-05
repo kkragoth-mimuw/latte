@@ -9,7 +9,9 @@ from colorama import Fore, Back, Style
 
 
 config = Box({
-    "WHITELIST_TESTS": ['core001.lat'],
+    "WHITELIST_TESTS": [
+
+    ],
     "BLACKLIST_TESTS": [],
     "PATH": "tests/benkegood/"
 })
@@ -50,17 +52,22 @@ def run_tests_good(tests):
                 incorrectTests.lli_error.append(test)
             elif res == TestResult.OUTPUT_ERROR:
                 incorrectTests.output_error.append(test)
+    
+    print_summary(correctTests, incorrectTests)
 
+def print_summary(correctTests, incorrectTests):
+    incorrectTestsCount = len(incorrectTests.compilation_error) + len(incorrectTests.lli_error) + len(incorrectTests.output_error)
     print(f'{Fore.YELLOW}Tests summary{Style.RESET_ALL}')
     print(f'Correct tests: {Fore.GREEN} {len(correctTests)} {Style.RESET_ALL}')
-    print(f'Incorrect tests: {Fore.RED} {len(incorrectTests.compilation_error) + len(incorrectTests.lli_error) + len(incorrectTests.output_error)} {Style.RESET_ALL}')
-    print(f'List of problematic tests:')
-    if (len(incorrectTests.compilation_error) > 0):
-        print(f'compilation errors: {incorrectTests.compilation_error}')
-    if (len(incorrectTests.lli_error) > 0):
-        print(f'lli errors: {incorrectTests.lli_error}')
-    if (len(incorrectTests.output_error) > 0):
-        print(f'output errors: {incorrectTests.output_error}')
+    print(f'Incorrect tests: {Fore.RED} {incorrectTestsCount} {Style.RESET_ALL}')
+    if incorrectTestsCount > 0:
+        print(f'List of problematic tests:')
+        if (len(incorrectTests.compilation_error) > 0):
+            print(f'compilation errors: {incorrectTests.compilation_error}')
+        if (len(incorrectTests.lli_error) > 0):
+            print(f'lli errors: {incorrectTests.lli_error}')
+        if (len(incorrectTests.output_error) > 0):
+            print(f'output errors: {incorrectTests.output_error}')
 
 def run_test_good(test) -> TestResult:
     print(f'Running test {test}..')
