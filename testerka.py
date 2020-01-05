@@ -10,7 +10,7 @@ from colorama import Fore, Back, Style
 
 config = Box({
     "WHITELIST_TESTS": [
-
+        
     ],
     "BLACKLIST_TESTS": [],
     "PATH": "tests/benkegood/"
