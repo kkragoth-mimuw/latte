@@ -2,7 +2,7 @@
 
 -- TODO: https://buildmedia.readthedocs.org/media/pdf/mapping-high-level-constructs-to-llvm-ir/latest/mapping-high-level-constructs-to-llvm-ir.pdf
 -- on mac:  /usr/local/opt/llvm/bin/llvm-as
--- export PATH=$PATH:/usr/local/opt/llvm/bin/llvm-as
+-- export PATH=$PATH:/usr/local/opt/llvm/bin/
 
 -- TODO:
 -- TESTING
@@ -195,9 +195,9 @@ compileFnDef (FnDef type' ident args block) = do
     functionBlocksMap <- gets functionBlocks
     let blockMap = fromJust $ Map.lookup ident functionBlocksMap
     -- TODO
-    -- optimizedBlockMap <- optimizeBlockMapReturn blockMap
+    optimizedBlockMap <- optimizeBlockMapReturn blockMap
 
-    let optimizedBlockMap = blockMap -- noOptimize
+    -- let optimizedBlockMap = blockMap -- noOptimize
 
     modify (\store -> (store {
         functionBlocks = Map.insert ident (optimizedBlockMap) functionBlocksMap
