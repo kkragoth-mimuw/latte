@@ -60,8 +60,73 @@ functionHasIO :: Block -> Bool
 functionHasIO _ = True
 
 optimizeTopDef :: TopDef -> OM TopDef
-optimizeTopDef topDef = do
-    return topDef
+optimizeTopDef (FnDef Void ident args (Block [])) = do
+    return (FnDef Void ident args (Block [VRet]))
+optimizeTopDef (FnDef type' ident args block@(Block stmts)) = do
+    optimizedStmts <- optimizeStmts stmts
+    return (FnDef type' ident args (Block optimizedStmts))
+
+optimizeStmts :: [Stmt] -> OM [Stmt]
+optimizeStmts [] = return []
+optimizeStmts (x:xs) = do
+    optimizedX <- optimizeStmt x 
+    optimizedXS <- optimizeStmts xs
+    return $ [optimizedX] ++ optimizedXS
+
+optimizeStmt :: Stmt -> OM Stmt
+optimizeStmt s = return s
+
+optimizeExpr :: Expr -> OM Expr
+optimizeExpr e@(ERel e1 EQU e2) = do
+    eo1 <- optimizeExpr e1
+    eo2 <- optimizeExpr e2
+
+    case (eo1, eo2) of
+        (ELitFalse, ELitFalse) -> return ELitTrue
+        (ELitTrue, ELitTrue) -> return ELitTrue
+        (ELitFalse, _) -> return ELitFalse
+        (ELitTrue, _) -> return ELitFalse
+        (ELitInt i, ELitInt j) | i == j -> return ELitTrue
+        (ELitInt i, ELitInt j) | i /= j -> return ELitFalse
+        _ -> return e
+optimizeExpr e@(ERel e1 NE e2) = do
+    eo1 <- optimizeExpr e1
+    eo2 <- optimizeExpr e2
+
+    case (eo1, eo2) of
+        (ELitFalse, ELitFalse) -> return ELitFalse
+        (ELitTrue, ELitTrue) -> return ELitFalse
+        (ELitFalse, _) -> return ELitTrue
+        (ELitTrue, _) -> return ELitTrue
+        (ELitInt i, ELitInt j) | i == j -> return ELitFalse
+        (ELitInt i, ELitInt j) | i /= j -> return ELitTrue
+        _ -> return e
+optimizeExpr e@(ERel e1 relOp e2) = do
+    eo1 <- optimizeExpr e1
+    eo2 <- optimizeExpr e2
+    case (eo1, eo2) of
+        (ELitInt i, ELitInt j) -> do 
+                let result = case relOp of
+                        LTH -> i < j
+                        LE -> i <= j
+                        GTH -> i > j
+                        GE -> i >= j
+                case result of
+                    True -> return ELitTrue
+                    False -> return ELitFalse
+        _ -> return e
+
+optimizeExpr e@(EAnd e1 e2) = do
+    eo1 <- optimizeExpr e1
+    case eo1 of
+        ELitFalse -> return ELitFalse
+        _ -> return e
+optimizeExpr e@(EOr e1 e2) = do
+    eo1 <- optimizeExpr e1
+    case eo1 of
+        ELitTrue -> return ELitTrue
+        _ -> return e
+optimizeExpr e = return e
 
 predefinedFunctions :: [(Ident, (Type, Bool))]
 predefinedFunctions = ([
