@@ -71,11 +71,18 @@ def run_test_good(test) -> TestResult:
     test_bytecode = config.PATH + f'{test_basename}.bc'
     test_myoutput = config.PATH + f'{test_basename}.my_output'
     test_output = config.PATH + f'{test_basename}.output'
+    test_input = config.PATH + f'{test_basename}.input'
 
     with open(test_myoutput, 'w') as my_output_file:
-        result = subprocess.run(["lli", test_bytecode], stdout=my_output_file)   
-        if result.returncode != 0:
-            return TestResult.LLI_ERROR
+        if os.path.exists(test_input):
+            with open(test_input, 'r') as input_file:
+                result = subprocess.run(["lli", test_bytecode], stdout=my_output_file, stdin=input_file)   
+                if result.returncode != 0:
+                    return TestResult.LLI_ERROR
+        else:
+            result = subprocess.run(["lli", test_bytecode], stdout=my_output_file)   
+            if result.returncode != 0:
+                return TestResult.LLI_ERROR
 
     result = subprocess.run(["diff", "-q", test_myoutput, test_output])
 
