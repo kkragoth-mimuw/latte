@@ -16,6 +16,6 @@ L0:
 
 define void @p() {
 L0:
-	
+	ret void
 }
 

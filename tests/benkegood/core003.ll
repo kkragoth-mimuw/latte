@@ -12,7 +12,6 @@ L0:
 	br i1 1, label %L1, label %L2
 L1:
 	ret i32 0
-	br label %L3
 L2:
 	br label %L3
 }
@@ -24,12 +23,11 @@ L1:
 	br label %L3
 L2:
 	ret i32 0
-	br label %L3
 }
 
 define void @p() {
 L0:
-	
+	ret void
 }
 
 define i32 @main() {

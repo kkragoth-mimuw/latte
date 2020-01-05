@@ -183,7 +183,7 @@ compileFnDefs (x:xs) = do
     return (result ++ result2)
 
 compileFnDef :: TopDef -> GenM String
-compileFnDef (FnDef type' ident args block) = do
+compileFnDef (FnDef type' ident args block@(Block stmts)) = do
     modify (\store -> store {
         currentFunction = ident,
         currentLabel = 0,
@@ -195,14 +195,16 @@ compileFnDef (FnDef type' ident args block) = do
     })
 
     newEnv <- prepareArgs args
- 
-    local (const newEnv) (compileBlock block)
+
+    -- TODO move it to frontend
+    if (type' == Void && (length stmts == 0)) then do
+        local (const newEnv) (compileBlock (Block [VRet]))
+    else do 
+        local (const newEnv) (compileBlock block)
 
     functionBlocksMap <- gets functionBlocks
     let blockMap = fromJust $ Map.lookup ident functionBlocksMap
-    -- TODO
     optimizedBlockMap <- optimizeBlockMapReturn blockMap
-
     -- let optimizedBlockMap = blockMap -- noOptimize
 
     modify (\store -> (store {
