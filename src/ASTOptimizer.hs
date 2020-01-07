@@ -119,7 +119,7 @@ optimizeExpr e@(Not e1) = do
     case eo1 of
         (ELitFalse) -> return ELitTrue
         (ELitTrue) -> return ELitFalse
-        _ -> return eo1
+        _ -> return (Not eo1)
 optimizeExpr e@(EMul e1 mulOp e2) = do
     eo1 <- optimizeExpr e1
     eo2 <- optimizeExpr e2
@@ -187,12 +187,14 @@ optimizeExpr e@(EAnd e1 e2) = do
     eo2 <- optimizeExpr e2
     case eo1 of
         ELitFalse -> return ELitFalse
+        ELitTrue -> return eo2
         _ -> return (EAnd eo1 eo2)
 optimizeExpr e@(EOr e1 e2) = do
     eo1 <- optimizeExpr e1
     eo2 <- optimizeExpr e2
     case eo1 of
         ELitTrue -> return ELitTrue
+        ELitFalse -> return eo2
         _ -> return (EOr eo1 eo2)
 optimizeExpr e = return e
 

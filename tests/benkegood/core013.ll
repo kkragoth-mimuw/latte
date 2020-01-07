@@ -99,14 +99,15 @@ L0:
 	%r0 = alloca i1
 	store i1 %b, i1* %r0
 	%r1 = load i1, i1* %r0
-	br i1 %r1, label %L1, label %L2
+	%r2 = xor i1 1, %r1
+	br i1 %r2, label %L1, label %L2
 L1:
-	%r2 = bitcast [6 x i8]* @s4 to i8*
-	call void @printString(i8* %r2)
+	%r3 = bitcast [6 x i8]* @s4 to i8*
+	call void @printString(i8* %r3)
 	br label %L3
 L2:
-	%r3 = bitcast [5 x i8]* @s5 to i8*
-	call void @printString(i8* %r3)
+	%r4 = bitcast [5 x i8]* @s5 to i8*
+	call void @printString(i8* %r4)
 	br label %L3
 L3:
 	ret void
