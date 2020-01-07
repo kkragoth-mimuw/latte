@@ -13,7 +13,7 @@ config = Box({
         
     ],
     "BLACKLIST_TESTS": [],
-    "PATH": "tests/benkegood/"
+    "PATH": "tests/basic/"
 })
 
 

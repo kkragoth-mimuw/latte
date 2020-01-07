@@ -1,6 +1,13 @@
 * Compiler: LLVM
 * Written in Haskell (Using MTL (Control.Monad))
-* make
+* Compiling project on students:
+    1. Adjust path 
+    $ PATH=/home/students/inf/PUBLIC/MRJP/bin/:/home/students/inf/PUBLIC/MRJP/ghc-8.2.2/bin:$PATH
+    2. Install mtl (probably already installed)
+    $ cabal update
+    $ cabal install mtl
+    3. Run make
+    $ make
 * src:
     Main.hs - running compiler
     LLVMCompiler.hs - LLVM Code generation

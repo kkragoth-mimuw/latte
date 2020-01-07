@@ -6,16 +6,17 @@
 
 -- TODO:
 -- TESTING
--- Tests summary 5 Jan
--- Correct tests:  16
--- Incorrect tests:  6
--- problematic tests:
--- compilation errors: ['core001.lat', 'core010.lat', 'core012.lat', 'core021.lat']
--- lli errors: ['core003.lat', 'core020.lat']
-
 -- Tests summary
 -- Correct tests:  22
 -- Incorrect tests:  0
+
+-- Tests summary
+-- Correct tests:  14
+-- Incorrect tests:  6
+-- List of problematic tests:
+-- compilation errors: ['escaped_string.lat', 'negation.lat', 'print_complicated_string.lat']
+-- lli errors: ['bool_operations.lat', 'while_true.lat', 'while_true2.lat']
+
 
 
 module LLVMCompiler where
