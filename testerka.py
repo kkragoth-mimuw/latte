@@ -71,9 +71,9 @@ def run_tests_good(dir, tests):
     return (correctTests, incorrectTests)
     print_summary(correctTests, incorrectTests)
 
-def print_summary(correctTests, incorrectTests):
+def print_summary(testSetName, correctTests, incorrectTests):
     incorrectTestsCount = len(incorrectTests.compilation_error) + len(incorrectTests.lli_error) + len(incorrectTests.output_error)
-    print(f'{Fore.YELLOW}Tests summary{Style.RESET_ALL}')
+    print(f'{Fore.YELLOW}Tests summary for {testSetName}{Style.RESET_ALL}')
     print(f'Correct tests: {Fore.GREEN} {len(correctTests)} {Style.RESET_ALL}')
     print(f'Incorrect tests: {Fore.RED} {incorrectTestsCount} {Style.RESET_ALL}')
     if incorrectTestsCount > 0:
@@ -126,8 +126,7 @@ if __name__ == "__main__":
         test_results[test_set.NAME] = run_tests_good(test_set.PATH, tests)
 
     for k, v in test_results.items():
-        print (f'Results of set: {k}')
-        print_summary(v[0], v[1])
+        print_summary(k, v[0], v[1])
 
         # print(f'Running test set: {test_set.NAME}')
         # run_tests_good(tests)

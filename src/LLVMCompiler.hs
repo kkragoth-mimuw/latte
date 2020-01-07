@@ -5,17 +5,17 @@
 -- export PATH=$PATH:/usr/local/opt/llvm/bin/
 
 -- TESTING:
--- CORE:
--- Tests summary
+-- Tests summary for BENCORE
 -- Correct tests:  22
 -- Incorrect tests:  0
-
--- COMMUNITY
--- Tests summary
+-- Tests summary for STUDENTS
 -- Correct tests:  17
 -- Incorrect tests:  3
 -- List of problematic tests:
 -- compilation errors: ['escaped_string.lat', 'negation.lat', 'print_complicated_string.lat']
+-- Tests summary for MY
+-- Correct tests:  2
+-- Incorrect tests:  0
 
 module LLVMCompiler where
 
