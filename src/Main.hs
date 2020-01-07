@@ -25,6 +25,16 @@ import           LLVMCompiler
 
 import           ErrM
 
+-- STUDENTS BUILD FIX
+import           Control.Monad.Identity
+import           Control.Monad.Reader
+import           Control.Monad.State
+import           Control.Monad.Writer
+import           Control.Monad.Fail
+instance MonadFail Identity where
+  fail = error
+-- SHOULD OWORK ON STUDENTS
+
 type ParseFun = [Token] -> Err Program
 
 myLLexer = myLexer
