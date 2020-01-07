@@ -88,22 +88,28 @@ optimizeStmt s@(SExp e) = do
 
 optimizeStmt s@(Cond e sTrue) = do
     eo <- optimizeExpr e
-    case eo of
-        ELitTrue -> return sTrue
-        ELitFalse -> return Empty
-        _ -> return s
+    so <- optimizeStmt sTrue
+    case so of 
+        Empty -> return Empty
+        _ -> case eo of
+            ELitTrue -> return so
+            ELitFalse -> return Empty
+            _ -> return (Cond eo so)
 
 optimizeStmt s@(CondElse e sTrue sFalse) = do
     eo <- optimizeExpr e
+    soT <- optimizeStmt sTrue
+    soF <- optimizeStmt sFalse
     case eo of
-        ELitTrue -> return sTrue
-        ELitFalse -> return sFalse
-        _ -> return s
-optimizeStmt s@(While e stmts) = do
+        ELitTrue -> return soT
+        ELitFalse -> return soF
+        _ -> return (CondElse eo soT soF)
+optimizeStmt s@(While e stmt) = do
     eo <- optimizeExpr e
+    so <- optimizeStmt stmt
     case eo of
         ELitFalse -> return Empty
-        _ -> return s
+        _ -> return (While eo so)
 optimizeStmt s = return s
 
 optimizeExpr :: Expr -> OM Expr
