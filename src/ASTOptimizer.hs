@@ -80,7 +80,7 @@ optimizeStmt s@(BStmt (Block stmts)) = do
     stmtso <- optimizeStmts stmts
     case stmtso of
         [] -> return Empty
-        _ -> return s
+        _ -> return (BStmt (Block stmtso))
 optimizeStmt s@(SExp e) = do
     -- todo: check if theres func app with side effects
     eo <- optimizeExpr e
@@ -119,7 +119,7 @@ optimizeExpr e@(Not e1) = do
     case eo1 of
         (ELitFalse) -> return ELitTrue
         (ELitTrue) -> return ELitFalse
-        _ -> return e
+        _ -> return eo1
 optimizeExpr e@(EMul e1 mulOp e2) = do
     eo1 <- optimizeExpr e1
     eo2 <- optimizeExpr e2
@@ -131,7 +131,7 @@ optimizeExpr e@(EMul e1 mulOp e2) = do
                         Div -> (div)
                         Mod -> (mod)
                 return $ ELitInt (i `func` j)
-        _ -> return e
+        _ -> return (EMul eo1 mulOp eo2)
 optimizeExpr e@(EAdd e1 addOp e2) = do
     eo1 <- optimizeExpr e1
     eo2 <- optimizeExpr e2
@@ -142,7 +142,7 @@ optimizeExpr e@(EAdd e1 addOp e2) = do
                         Plus -> (+)
                         Minus -> (-)
                 return $ ELitInt (i `func` j)
-        _ -> return e
+        _ -> return (EAdd eo1 addOp eo2)
 optimizeExpr e@(ERel e1 EQU e2) = do
     eo1 <- optimizeExpr e1
     eo2 <- optimizeExpr e2
@@ -154,7 +154,7 @@ optimizeExpr e@(ERel e1 EQU e2) = do
         (ELitTrue, _) -> return ELitFalse
         (ELitInt i, ELitInt j) | i == j -> return ELitTrue
         (ELitInt i, ELitInt j) | i /= j -> return ELitFalse
-        _ -> return e
+        _ -> return (ERel eo1 EQU eo2)
 optimizeExpr e@(ERel e1 NE e2) = do
     eo1 <- optimizeExpr e1
     eo2 <- optimizeExpr e2
@@ -166,7 +166,7 @@ optimizeExpr e@(ERel e1 NE e2) = do
         (ELitTrue, _) -> return ELitTrue
         (ELitInt i, ELitInt j) | i == j -> return ELitFalse
         (ELitInt i, ELitInt j) | i /= j -> return ELitTrue
-        _ -> return e
+        _ -> return (ERel eo1 NE eo2)
 optimizeExpr e@(ERel e1 relOp e2) = do
     eo1 <- optimizeExpr e1
     eo2 <- optimizeExpr e2
@@ -180,18 +180,20 @@ optimizeExpr e@(ERel e1 relOp e2) = do
                 case result of
                     True -> return ELitTrue
                     False -> return ELitFalse
-        _ -> return e
+        _ -> return (ERel eo1 relOp eo2)
 
 optimizeExpr e@(EAnd e1 e2) = do
     eo1 <- optimizeExpr e1
+    eo2 <- optimizeExpr e2
     case eo1 of
         ELitFalse -> return ELitFalse
-        _ -> return e
+        _ -> return (EAnd eo1 eo2)
 optimizeExpr e@(EOr e1 e2) = do
     eo1 <- optimizeExpr e1
+    eo2 <- optimizeExpr e2
     case eo1 of
         ELitTrue -> return ELitTrue
-        _ -> return e
+        _ -> return (EOr eo1 eo2)
 optimizeExpr e = return e
 
 -- predefinedFunctions :: [(Ident, (Type, Bool))]

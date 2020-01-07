@@ -17,64 +17,63 @@ L0:
 	%r2 = icmp sle i32 3, %r1
 	br i1 %r2, label %L1, label %L4
 L1:
-	%r3 = icmp ne i32 4, 2
-	br i1 %r3, label %L2, label %L3
+	br i1 1, label %L2, label %L3
 L2:
 	br label %L3
 L3:
-	%r4 = phi i1 [ %r3, %L1 ], [ 1, %L2 ]
+	%r3 = phi i1 [ 1, %L1 ], [ 1, %L2 ]
 	br label %L4
 L4:
-	%r5 = phi i1 [ %r2, %L0 ], [ %r4, %L3 ]
-	br i1 %r5, label %L5, label %L6
+	%r4 = phi i1 [ %r2, %L0 ], [ %r3, %L3 ]
+	br i1 %r4, label %L5, label %L6
 L5:
 	call void @printBool(i1 1)
 	br label %L7
 L6:
-	%r6 = bitcast [4 x i8]* @s1 to i8*
-	call void @printString(i8* %r6)
+	%r5 = bitcast [4 x i8]* @s1 to i8*
+	call void @printString(i8* %r5)
 	br label %L7
 L7:
-	%r7 = icmp eq i1 1, 1
-	br i1 %r7, label %L9, label %L8
+	%r6 = icmp eq i1 1, 1
+	br i1 %r6, label %L9, label %L8
 L8:
-	%r8 = call i1 @dontCallMe(i32 1)
+	%r7 = call i1 @dontCallMe(i32 1)
 	br label %L9
 L9:
-	%r9 = phi i1 [ %r7, %L7 ], [ %r8, %L8 ]
-	call void @printBool(i1 %r9)
-	%r10 = sub i32 0, 5
-	%r11 = icmp slt i32 4, %r10
-	br i1 %r11, label %L10, label %L11
+	%r8 = phi i1 [ %r6, %L7 ], [ %r7, %L8 ]
+	call void @printBool(i1 %r8)
+	%r9 = sub i32 0, 5
+	%r10 = icmp slt i32 4, %r9
+	br i1 %r10, label %L10, label %L11
 L10:
-	%r12 = call i1 @dontCallMe(i32 2)
+	%r11 = call i1 @dontCallMe(i32 2)
 	br label %L11
 L11:
-	%r13 = phi i1 [ %r11, %L9 ], [ %r12, %L10 ]
-	call void @printBool(i1 %r13)
-	%r14 = load i32, i32* %r0
-	%r15 = icmp eq i32 4, %r14
-	br i1 %r15, label %L12, label %L15
+	%r12 = phi i1 [ %r10, %L9 ], [ %r11, %L10 ]
+	call void @printBool(i1 %r12)
+	%r13 = load i32, i32* %r0
+	%r14 = icmp eq i32 4, %r13
+	br i1 %r14, label %L12, label %L15
 L12:
-	%r16 = xor i1 1, 0
-	%r17 = icmp eq i1 1, %r16
-	br i1 %r17, label %L13, label %L14
+	%r15 = xor i1 1, 0
+	%r16 = icmp eq i1 1, %r15
+	br i1 %r16, label %L13, label %L14
 L13:
 	br label %L14
 L14:
-	%r18 = phi i1 [ %r17, %L12 ], [ 1, %L13 ]
+	%r17 = phi i1 [ %r16, %L12 ], [ 1, %L13 ]
 	br label %L15
 L15:
-	%r19 = phi i1 [ %r15, %L11 ], [ %r18, %L14 ]
+	%r18 = phi i1 [ %r14, %L11 ], [ %r17, %L14 ]
+	call void @printBool(i1 %r18)
+	%r19 = call i1 @implies(i1 0,i1 0)
 	call void @printBool(i1 %r19)
-	%r20 = call i1 @implies(i1 0,i1 0)
+	%r20 = call i1 @implies(i1 0,i1 1)
 	call void @printBool(i1 %r20)
-	%r21 = call i1 @implies(i1 0,i1 1)
+	%r21 = call i1 @implies(i1 1,i1 0)
 	call void @printBool(i1 %r21)
-	%r22 = call i1 @implies(i1 1,i1 0)
+	%r22 = call i1 @implies(i1 1,i1 1)
 	call void @printBool(i1 %r22)
-	%r23 = call i1 @implies(i1 1,i1 1)
-	call void @printBool(i1 %r23)
 	ret i32 0
 }
 
