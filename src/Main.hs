@@ -67,6 +67,7 @@ run v p s filePathM = let ts = myLLexer s in case p ts of
                                         Left error -> do
                                           putStrLn "ERROR\n"
                                           putStrLn error
+                                          exitFailure
                                         Right result -> do
                                           case filePathM of
                                             Nothing -> putStr (result)
