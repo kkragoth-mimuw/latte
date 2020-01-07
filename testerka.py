@@ -9,11 +9,26 @@ from colorama import Fore, Back, Style
 
 
 config = Box({
-    "WHITELIST_TESTS": [
-        
-    ],
-    "BLACKLIST_TESTS": [],
-    "PATH": "tests/basic/"
+    "TEST_SETS": [
+        {
+            "NAME": "BENCORE",
+            "WHITELIST_TESTS": [
+            ],
+            "PATH": "tests/benkegood/"
+        },
+        {
+            "NAME": "STUDENTS",
+            "WHITELIST_TESTS": [
+            ],
+            "PATH": "tests/basic/"
+        },
+        {
+            "NAME": "MY",
+            "WHITELIST_TESTS": [
+            ],
+            "PATH": "tests/my/"
+        },
+    ]
 })
 
 
@@ -25,7 +40,7 @@ class TestResult(Enum):
 
 def gather_all_tests_in_directory(dir):
     tests = []
-    for file in os.listdir(config.PATH):
+    for file in os.listdir(dir):
         if file.endswith(".lat"):
             tests.append(file)
 
@@ -33,7 +48,7 @@ def gather_all_tests_in_directory(dir):
 
     return tests
 
-def run_tests_good(tests):
+def run_tests_good(dir, tests):
     correctTests = []
     incorrectTests = Box({
         "compilation_error": [],
@@ -42,7 +57,7 @@ def run_tests_good(tests):
     })
 
     for test in tests:
-        res = run_test_good(test)
+        res = run_test_good(dir, test)
         if res == TestResult.OK:
             correctTests.append(test)
         else:
@@ -53,6 +68,7 @@ def run_tests_good(tests):
             elif res == TestResult.OUTPUT_ERROR:
                 incorrectTests.output_error.append(test)
     
+    return (correctTests, incorrectTests)
     print_summary(correctTests, incorrectTests)
 
 def print_summary(correctTests, incorrectTests):
@@ -69,17 +85,17 @@ def print_summary(correctTests, incorrectTests):
         if (len(incorrectTests.output_error) > 0):
             print(f'output errors: {incorrectTests.output_error}')
 
-def run_test_good(test) -> TestResult:
+def run_test_good(dir, test) -> TestResult:
     print(f'Running test {test}..')
-    result = subprocess.run(["./latc_llvm", config.PATH + test])
+    result = subprocess.run(["./latc_llvm", dir + test])
     if result.returncode != 0:
         return TestResult.COMPILATION_ERROR
 
     test_basename = test.partition(".")[0]
-    test_bytecode = config.PATH + f'{test_basename}.bc'
-    test_myoutput = config.PATH + f'{test_basename}.my_output'
-    test_output = config.PATH + f'{test_basename}.output'
-    test_input = config.PATH + f'{test_basename}.input'
+    test_bytecode = dir + f'{test_basename}.bc'
+    test_myoutput = dir + f'{test_basename}.my_output'
+    test_output = dir + f'{test_basename}.output'
+    test_input = dir + f'{test_basename}.input'
 
     with open(test_myoutput, 'w') as my_output_file:
         if os.path.exists(test_input):
@@ -100,10 +116,18 @@ def run_test_good(test) -> TestResult:
         return TestResult.OUTPUT_ERROR
 
 if __name__ == "__main__":
-    tests = []
-    if len(config.WHITELIST_TESTS) > 0:
-        tests = config.WHITELIST_TESTS
-    else:
-        tests = gather_all_tests_in_directory(config.PATH)
+    test_results = {}
+    for test_set in config.TEST_SETS:
+        tests = []
+        if len(test_set.WHITELIST_TESTS) > 0:
+            tests = test_set.WHITELIST_TESTS
+        else:
+            tests = gather_all_tests_in_directory(test_set.PATH)
+        test_results[test_set.NAME] = run_tests_good(test_set.PATH, tests)
 
-    run_tests_good(tests)
+    for k, v in test_results.items():
+        print (f'Results of set: {k}')
+        print_summary(v[0], v[1])
+
+        # print(f'Running test set: {test_set.NAME}')
+        # run_tests_good(tests)

@@ -73,5 +73,7 @@ L2:
 	%r3 = bitcast [6 x i8]* @s5 to i8*
 	call void @printString(i8* %r3)
 	ret void
+L3:
+	ret void
 }
 

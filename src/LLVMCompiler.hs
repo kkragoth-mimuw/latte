@@ -4,19 +4,18 @@
 -- on mac:  /usr/local/opt/llvm/bin/llvm-as
 -- export PATH=$PATH:/usr/local/opt/llvm/bin/
 
--- TODO:
--- TESTING
+-- TESTING:
+-- CORE:
 -- Tests summary
 -- Correct tests:  22
 -- Incorrect tests:  0
 
+-- COMMUNITY
 -- Tests summary
--- Correct tests:  14
--- Incorrect tests:  6
+-- Correct tests:  17
+-- Incorrect tests:  3
 -- List of problematic tests:
--- compilation errors: ['bool_operations.lat', 'escaped_string.lat', 'negation.lat', 'print_complicated_string.lat', 'while_true.lat', 'while_true2.lat']
-
-
+-- compilation errors: ['escaped_string.lat', 'negation.lat', 'print_complicated_string.lat']
 
 module LLVMCompiler where
 
@@ -392,6 +391,19 @@ compileStmt (CondElse expr stmtTrue stmtFalse) = do
     emitInSpecificBlock ifTrueStmtsLabel (Branch afterIfBlock)
     emitInSpecificBlock ifFalseStmtsLabel (Branch afterIfBlock)
     ask
+compileStmt (While ELitTrue stmt) = do
+    preConditionLabel <- gets currentLabel
+    ifTrueBodyLabel <- getNewLabel
+    case stmt of
+        (BStmt (Block stmts)) -> do
+            compileStmts stmts
+        _ -> do
+            compileStmt stmt
+    emit (Branch ifTrueBodyLabel)
+
+    afterWhileLabel <- getNewLabel
+    emitInSpecificBlock preConditionLabel (Branch ifTrueBodyLabel)
+    ask
 compileStmt (While expr stmt) = do
     preConditionLabel <- gets currentLabel
     conditionLabel <- getNewLabel
@@ -404,8 +416,11 @@ compileStmt (While expr stmt) = do
         _ -> do
             compileStmt stmt
     emit (Branch conditionLabel)
+
     afterWhileLabel <- getNewLabel
-    emitInSpecificBlock conditionLabel (BranchConditional condition ifTrueBodyLabel afterWhileLabel)
+    
+    conditionLabelFollowUp <- getLabelFollowUp conditionLabel
+    emitInSpecificBlock conditionLabelFollowUp (BranchConditional condition ifTrueBodyLabel afterWhileLabel)
     ask
 
 compileDecls :: Type -> [Item] -> GenM Env
