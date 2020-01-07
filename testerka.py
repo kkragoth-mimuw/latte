@@ -69,7 +69,6 @@ def run_tests_good(dir, tests):
                 incorrectTests.output_error.append(test)
     
     return (correctTests, incorrectTests)
-    print_summary(correctTests, incorrectTests)
 
 def print_summary(testSetName, correctTests, incorrectTests):
     incorrectTestsCount = len(incorrectTests.compilation_error) + len(incorrectTests.lli_error) + len(incorrectTests.output_error)
