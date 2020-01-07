@@ -14,8 +14,7 @@
 -- Correct tests:  14
 -- Incorrect tests:  6
 -- List of problematic tests:
--- compilation errors: ['escaped_string.lat', 'negation.lat', 'print_complicated_string.lat']
--- lli errors: ['bool_operations.lat', 'while_true.lat', 'while_true2.lat']
+-- compilation errors: ['bool_operations.lat', 'escaped_string.lat', 'negation.lat', 'print_complicated_string.lat', 'while_true.lat', 'while_true2.lat']
 
 
 
@@ -185,7 +184,7 @@ compileFnDefs (x:xs) = do
     return (result ++ result2)
 
 compileFnDef :: TopDef -> GenM String
-compileFnDef (FnDef type' ident args block@(Block stmts)) = do
+compileFnDef (FnDef type' ident args (Block stmts)) = do
     modify (\store -> store {
         currentFunction = ident,
         currentLabel = 0,
@@ -195,6 +194,12 @@ compileFnDef (FnDef type' ident args block@(Block stmts)) = do
         functionsLabelFollowUp = Map.insert ident (Map.empty) (functionsLabelFollowUp store),
         initBlock = 1
     })
+
+    let stmts' = case type' of
+        Void -> stmts' ++ VRet
+        _ -> stmts'
+
+    let block = Block stmts'
 
     newEnv <- prepareArgs args
 
