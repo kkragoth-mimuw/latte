@@ -1,0 +1,8 @@
+* Compiler: LLVM
+* Written in Haskell (Using MTL (Control.Monad))
+* make
+* src:
+    Main.hs - running compiler
+    LLVMCompiler.hs - LLVM Code generation
+    Typecheker.hs - Typechecker
+    ASTOptimizer.hs - Simple optimizations (True || False) -> (True); removing if(True) conditional jumps etc

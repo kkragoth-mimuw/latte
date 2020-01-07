@@ -13,9 +13,10 @@
 -- compilation errors: ['core001.lat', 'core010.lat', 'core012.lat', 'core021.lat']
 -- lli errors: ['core003.lat', 'core020.lat']
 
--- PHI_OPTIMIZATIONS
--- DUMMY FRONTEND OPTIMIZATIONS
--- ADVANCED FRONTEND OPTIMIZATIONS
+-- Tests summary
+-- Correct tests:  22
+-- Incorrect tests:  0
+
 
 module LLVMCompiler where
 
@@ -196,11 +197,7 @@ compileFnDef (FnDef type' ident args block@(Block stmts)) = do
 
     newEnv <- prepareArgs args
 
-    -- TODO move it to frontend
-    if (type' == Void && (length stmts == 0)) then do
-        local (const newEnv) (compileBlock (Block [VRet]))
-    else do 
-        local (const newEnv) (compileBlock block)
+    local (const newEnv) (compileBlock block)
 
     functionBlocksMap <- gets functionBlocks
     let blockMap = fromJust $ Map.lookup ident functionBlocksMap
@@ -243,8 +240,17 @@ optimizeBlock block = do
         case (last newCode) of
             ReturnVoid -> return $ block { code = newCode }
             Return _ -> return $ block { code = newCode }
-            Branch _ -> return $ block { code = newCode }
-            BranchConditional _ _ _ -> return $ block { code = newCode }
+            Branch l -> do
+                case Map.lookup l (fromJust $ Map.lookup (currentFunction store) (functionBlocks store)) of
+                    Nothing -> throwError $ CompilationErrorFunctionHasNoExplicitReturn (currentFunction store)
+                    Just _ -> return $ block { code = newCode }
+            BranchConditional _ l r -> do
+                let lLabelBlock = Map.lookup l (fromJust $ Map.lookup (currentFunction store) (functionBlocks store))
+                let rLabelBlock = Map.lookup r (fromJust $ Map.lookup (currentFunction store) (functionBlocks store))
+                case (lLabelBlock, rLabelBlock) of
+                    (Nothing, _) -> throwError $ CompilationErrorFunctionHasNoExplicitReturn (currentFunction store)
+                    (_, Nothing) -> throwError $ CompilationErrorFunctionHasNoExplicitReturn (currentFunction store)
+                    _ -> return $ block { code = newCode }
             _ -> throwError $ CompilationErrorFunctionHasNoExplicitReturn (currentFunction store)
         
 
