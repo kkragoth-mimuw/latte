@@ -196,8 +196,8 @@ compileFnDef (FnDef type' ident args (Block stmts)) = do
     })
 
     let stmts' = case type' of
-        Void -> stmts' ++ VRet
-        _ -> stmts'
+            Void -> stmts ++ [VRet]
+            _ -> stmts
 
     let block = Block stmts'
 
