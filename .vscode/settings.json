@@ -1,0 +1,10 @@
+{
+    "files.autoSave": "onFocusChange",
+    "files.exclude": {
+        "**/*.bc": true,
+        "**/*.hi": true,
+        "**/*.o": true,
+        "**/*.out": true,
+        "my_tests": true
+    }
+}

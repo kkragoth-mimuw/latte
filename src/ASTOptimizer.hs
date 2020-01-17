@@ -34,12 +34,11 @@ initEnv = Env {
 }
 
 data Store = Store {
-    -- functions :: Map.Map Ident (Type, Bool)
-    -- functionsOptimized :: Map.Map Ident (Block)
+    functionVariables :: [(Ident, Type)]
 }
 
 initStore = Store {
-    -- functions = Map.fromList (predefinedFunctions)
+    functionVariables = []
 }
 
 instance Optimizable Program where
@@ -50,13 +49,6 @@ instance Optimizable Program where
 
 fillFunctionInformation :: TopDef -> OM ()
 fillFunctionInformation _ = return ()
--- fillFunctionInformation (FnDef type' ident args block) = do
---     let hasEffect = case type' of
---             Void -> functionHasIO block
---             _v -> True
---     modify (\store -> store {
---         functions = Map.insert ident ((Fun type' (map (\(Arg t _) -> t) args)), True) (functions store)
---     })
 
 optimizeTopDef :: TopDef -> OM TopDef
 optimizeTopDef (FnDef Void ident args (Block [])) = do
@@ -82,7 +74,6 @@ optimizeStmt s@(BStmt (Block stmts)) = do
         [] -> return Empty
         _ -> return (BStmt (Block stmtso))
 optimizeStmt s@(SExp e) = do
-    -- todo: check if theres func app with side effects
     eo <- optimizeExpr e
     return (SExp eo)
 

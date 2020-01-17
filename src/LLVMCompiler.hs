@@ -31,7 +31,7 @@ import Text.Printf
 
 import AbsLatte 
 
-debugPrint = 0
+debugPrint = 1
 phiOptimization = 1
 
 type GenM a = (ExceptT CompilationError (ReaderT Env (StateT Store IO) )) a
@@ -55,11 +55,13 @@ class Compilable f  where
     compile :: f -> GenM String
 
 data Env = Env {
-    vars :: Map.Map Ident LLVMVariable
+    vars :: Map.Map Ident LLVMVariable,
+    afterBlockJump :: Maybe Integer
 }
 
 initEnv = Env {
-    vars = Map.empty
+    vars = Map.empty,
+    afterBlockJump = Nothing
 }
 
 data Store = Store {
@@ -206,8 +208,8 @@ compileFnDef (FnDef type' ident args (Block stmts)) = do
 
     functionBlocksMap <- gets functionBlocks
     let blockMap = fromJust $ Map.lookup ident functionBlocksMap
-    optimizedBlockMap <- optimizeBlockMapReturn blockMap
-    -- let optimizedBlockMap = blockMap -- noOptimize
+    -- optimizedBlockMap <- optimizeBlockMapReturn blockMap
+    let optimizedBlockMap = blockMap -- noOptimize
 
     modify (\store -> (store {
         functionBlocks = Map.insert ident (optimizedBlockMap) functionBlocksMap

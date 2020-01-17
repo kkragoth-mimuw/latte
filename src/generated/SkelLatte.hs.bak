@@ -73,7 +73,7 @@ transExpr x = case x of
   EString string -> failure x
   ENewArray type_ expr -> failure x
   ENew type_ -> failure x
-  ENullCast type_ -> failure x
+  ECast type_ -> failure x
   Neg expr -> failure x
   Not expr -> failure x
   EMul expr1 mulop expr2 -> failure x

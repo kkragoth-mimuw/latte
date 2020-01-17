@@ -6,7 +6,17 @@ Program.   Program ::= [TopDef] ;
 
 FnDef.	   TopDef ::= Type Ident "(" [Arg] ")" Block ;
 
+ClassDef.  TopDef ::= "class" Ident "{" [ClassPole] "}";
+
+ClassDefExt. TopDef ::= "class" Ident "extends" Ident "{" [ClassPole] "}" ;
+
+ClassFieldDef. ClassPole ::= Type Ident ";" ;
+
+ClassMethodDef. ClassPole ::= Type Ident "(" [Arg] ")" Block ;
+
 separator nonempty TopDef "" ;
+
+separator nonempty ClassPole "" ;
 
 Arg. 	   Arg ::= Type Ident;
 
@@ -24,17 +34,17 @@ BStmt.     Stmt ::= Block ;
 
 Decl.      Stmt ::= Type [Item] ";" ;
 
-NoInit.    Item ::= Ident ; 
+NoInit.    Item ::= LValue ;
 
-Init.      Item ::= Ident "=" Expr ;
+Init.      Item ::= LValue "=" Expr ;
 
 separator nonempty Item "," ;
 
-Ass.       Stmt ::= Ident "=" Expr  ";" ;
+Ass.       Stmt ::= LValue "=" Expr  ";" ;
 
-Incr.      Stmt ::= Ident "++"  ";" ;
+Incr.      Stmt ::= LValue "++"  ";" ;
 
-Decr.      Stmt ::= Ident "--"  ";" ;
+Decr.      Stmt ::= LValue "--"  ";" ;
 
 Ret.       Stmt ::= "return" Expr ";" ;
 
@@ -46,7 +56,15 @@ CondElse.  Stmt ::= "if" "(" Expr ")" Stmt "else" Stmt  ;
 
 While.     Stmt ::= "while" "(" Expr ")" Stmt ;
 
+ForArray.      Stmt ::= "for" "(" Type Ident ":" Ident ")" ;
+
 SExp.      Stmt ::= Expr  ";" ;
+
+LValue.    LValue ::= Ident ;
+
+LValueClassField. LValue ::= LValue "." Ident ;
+
+LValueArrayElem. LValue ::= LValue "[" Expr "]" ;
 
 -- Types ---------------------------------------------------
 
@@ -58,23 +76,34 @@ Boolean.      Type ::= "boolean" ;
 
 Void.      Type ::= "void" ;
 
+ArrType.       Type ::= Type "[]";
+
+ClassType. Type ::= Ident ;
+
 internal   Fun. Type ::= Type "(" [Type] ")" ;
 
 separator  Type "," ;
 
 -- Expressions ---------------------------------------------
 
-EVar.      Expr6 ::= Ident ;
 
-ELitInt.   Expr6 ::= Integer ;
+EField.    Expr8 ::= LValue ;
 
-ELitTrue.  Expr6 ::= "true" ;
+ELitInt.   Expr8 ::= Integer ;
 
-ELitFalse. Expr6 ::= "false" ;
+ELitTrue.  Expr8 ::= "true" ;
 
-EApp.      Expr6 ::= Ident "(" [Expr] ")" ;
+ELitFalse. Expr8 ::= "false" ;
 
-EString.   Expr6 ::= String ;
+EApp.      Expr8 ::= LValue "(" [Expr] ")" ;
+
+EString.   Expr8 ::= String ;
+
+ENewArray. Expr7 ::= "new" Type "[" Expr "]" ;
+
+ENew.      Expr7 ::= "new" Type ;
+
+ENullCast.     Expr6 ::= "(" Type ")null" ;
 
 Neg.       Expr5 ::= "-" Expr6 ;
 
@@ -90,7 +119,7 @@ EAnd.      Expr1 ::= Expr2 "&&" Expr1 ;
 
 EOr.       Expr ::= Expr1 "||" Expr ;
 
-coercions  Expr 6 ;
+coercions  Expr 8 ;
 
 separator  Expr "," ;
 
@@ -125,4 +154,3 @@ comment    "#" ;
 comment    "//" ;
 
 comment    "/*" "*/" ;
-

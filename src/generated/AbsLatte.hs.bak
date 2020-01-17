@@ -69,7 +69,7 @@ data Expr
     | EString String
     | ENewArray Type Expr
     | ENew Type
-    | ENullCast Type
+    | ECast Type
     | Neg Expr
     | Not Expr
     | EMul Expr MulOp Expr
