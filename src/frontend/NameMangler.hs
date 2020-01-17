@@ -4,6 +4,7 @@ import Control.Monad.Reader
 import Control.Monad.State
 
 import qualified Data.Map as Map
+import Data.Maybe (fromJust)
 import Text.Printf
 
 import AbsLatte
@@ -82,14 +83,20 @@ nameMangleStmts (x:xs) = do
     return (envXS, stmtsX ++ stmtsXS)
 
 nameMangleStmt :: Stmt -> NMM (Env, [Stmt])
+nameMangleStmt (Empty) = do
+    env <- ask
+    return (env, [])
 nameMangleStmt (Decl type' []) = do
     env <- ask
     return (env, [])
+nameMangleStmt (BStmt (Block stmts)) = local increaseLevel (nameMangleStmts stmts)
 nameMangleStmt (Decl type' (x:xs)) = do
     (envX, stmtX) <- nameMangleDeclItem type' x
     (envXS, stmtsXS) <- local (const envX) (nameMangleStmt (Decl type' xs))
     return (envXS, [stmtX] ++ stmtsXS)
-newMangleStmt (BStmt (Block stmts)) = local increaseLevel (newMangleStmts stmts)
+nameMangleStmt (Ass lvalue expr) = error "todo"
+
+
 nameMangleStmt stmt = do
     env <- ask
     return (env, [stmt])
@@ -113,6 +120,17 @@ nameMangleDeclItem type' (Init ident expr) = do
         vars = Map.insert ident variableInfo (vars env)
     }
 
-    let stmt = Ass (LValue (nameMangleVariableInfo variableInfo)) expr
+    nameMangledExpr <- nameMangleExpr expr
+
+    let stmt = Ass (LValue (Ident (nameMangleVariableInfo variableInfo))) nameMangledExpr
 
     return (newEnv, stmt)
+
+-- nameMangleLValue :: LValue -> NMM LValue
+-- nameMangleLValue (LValue ident) = do
+--     varsMap <- asks vars0
+
+
+
+nameMangleExpr :: Expr -> NMM (Expr)
+nameMangleExpr expr = error "todo"

@@ -154,6 +154,12 @@ emitInSpecificBlock blockLabel instruction = do
                 functionBlocks = Map.insert (currentFunction store) (newMap) (functionBlocks store)
             })
 
+setAsCurrentLabel :: Integer -> GenM ()
+setAsCurrentLabel label = do
+    modify (\store -> store {
+        currentLabel = label
+    })
+
 getNewLabel :: GenM Integer
 getNewLabel = do
     modify (\store ->
@@ -309,8 +315,15 @@ compileBlock (Block stmts) = do
 compileStmts :: [Stmt] -> GenM Env
 compileStmts [] = ask
 compileStmts (stmt:stmts) = do
-    env <- compileStmt stmt
-    local (const env) (compileStmts stmts)
+    case stmts of 
+        [] -> case stmt of
+            c@(Cond _ _) -> compileStmtWithoutBranchToNextBlock c
+            c@(CondElse _ _ _) -> compileStmtWithoutBranchToNextBlock c
+            w@(While x _) | x /= ELitTrue-> compileStmtWithoutBranchToNextBlock w
+            _ -> compileStmt stmt
+        _ -> do
+            env <- compileStmt stmt
+            local (const env) (compileStmts stmts)
 
 compileStmt :: Stmt -> GenM Env
 compileStmt (Empty) = ask
@@ -336,15 +349,22 @@ compileStmt (SExp expr) = do
     _ <- compileExpr expr
     ask
 compileStmt (Cond expr stmt) = do
+    env <- ask
     condition <- compileExpr expr
     previousLabel <- gets currentLabel
     ifTrueStmtsLabel <- getNewLabel
+
+    afterIfBlock <- getNewLabel
+    let newEnv = env { afterBlockJump = Just afterIfBlock }
+    setAsCurrentLabel ifTrueStmtsLabel
+
     case stmt of
         (BStmt (Block stmts)) -> do
-            compileStmts stmts
+            local (const newEnv) (compileStmts stmts)
         _ -> do
-            compileStmt stmt
-    afterIfBlock <- getNewLabel
+            local (const newEnv) (compileStmt stmt)
+
+    setAsCurrentLabel afterIfBlock
 
     previousLabelFollowUp <- getLabelFollowUp previousLabel
     emitInSpecificBlock previousLabelFollowUp  (BranchConditional condition ifTrueStmtsLabel afterIfBlock)
@@ -353,22 +373,29 @@ compileStmt (Cond expr stmt) = do
 
     ask
 compileStmt (CondElse expr stmtTrue stmtFalse) = do
+    env <- ask
     condition <- compileExpr expr
     previousLabel <- gets currentLabel
+
     ifTrueStmtsLabel <- getNewLabel
+    ifFalseStmtsLabel <- getNewLabel
+    afterIfBlock <- getNewLabel
+    let newEnv = env { afterBlockJump = Just afterIfBlock }
+    setAsCurrentLabel ifTrueStmtsLabel
+
     case stmtTrue of
         (BStmt (Block stmts)) -> do
-            compileStmts stmts
+            local (const newEnv) (compileStmts stmts)
         _ -> do
-            compileStmt stmtTrue
-    ifFalseStmtsLabel <- getNewLabel
+            local (const newEnv) (compileStmt stmtTrue)
+    setAsCurrentLabel ifFalseStmtsLabel
     case stmtFalse of
         (BStmt (Block stmts)) -> do
-            compileStmts stmts
+            local (const newEnv) (compileStmts stmts)
         _ -> do
-            compileStmt stmtFalse
-    afterIfBlock <- getNewLabel
-
+            local (const newEnv) (compileStmt stmtFalse)
+            
+    setAsCurrentLabel afterIfBlock
     previousLabelFollowUp <- getLabelFollowUp previousLabel
     emitInSpecificBlock previousLabelFollowUp (BranchConditional condition ifTrueStmtsLabel ifFalseStmtsLabel)
     emitInSpecificBlock ifTrueStmtsLabel (Branch afterIfBlock)
@@ -388,11 +415,94 @@ compileStmt (While ELitTrue stmt) = do
     emitInSpecificBlock preConditionLabel (Branch ifTrueBodyLabel)
     ask
 compileStmt (While expr stmt) = do
+    env <- ask
     preConditionLabel <- gets currentLabel
     conditionLabel <- getNewLabel
     emitInSpecificBlock preConditionLabel (Branch conditionLabel)
     condition <- compileExpr expr
     ifTrueBodyLabel <- getNewLabel
+    afterWhileLabel <- getNewLabel
+    let newEnv = env { afterBlockJump = Just afterWhileLabel}
+    setAsCurrentLabel ifTrueBodyLabel 
+
+    case stmt of
+        (BStmt (Block stmts)) -> do
+            local (const newEnv) (compileStmts stmts)
+        _ -> do
+            local (const newEnv) (compileStmt stmt)
+    emit (Branch conditionLabel)
+
+    setAsCurrentLabel afterWhileLabel
+    
+    conditionLabelFollowUp <- getLabelFollowUp conditionLabel
+    emitInSpecificBlock conditionLabelFollowUp (BranchConditional condition ifTrueBodyLabel afterWhileLabel)
+    ask
+
+compileStmtWithoutBranchToNextBlock :: Stmt -> GenM Env
+compileStmtWithoutBranchToNextBlock (Cond expr stmt) = do
+    env <- ask
+    condition <- compileExpr expr
+    previousLabel <- gets currentLabel
+    ifTrueStmtsLabel <- getNewLabel
+
+    case stmt of
+        (BStmt (Block stmts)) -> do
+            compileStmts stmts
+        _ -> do
+            compileStmt stmt
+
+    let nextBlock = fromJust $ afterBlockJump env
+
+    previousLabelFollowUp <- getLabelFollowUp previousLabel
+    emitInSpecificBlock previousLabelFollowUp  (BranchConditional condition ifTrueStmtsLabel nextBlock)
+
+    emit (Branch nextBlock)
+    setAsCurrentLabel nextBlock
+
+    ask
+
+compileStmtWithoutBranchToNextBlock (CondElse expr stmtTrue stmtFalse) = do
+    env <- ask
+    condition <- compileExpr expr
+    previousLabel <- gets currentLabel
+
+    ifTrueStmtsLabel <- getNewLabel
+    ifFalseStmtsLabel <- getNewLabel
+
+    let nextBlock = fromJust $ afterBlockJump env
+    setAsCurrentLabel ifTrueStmtsLabel
+
+    case stmtTrue of
+        (BStmt (Block stmts)) -> do
+            compileStmts stmts
+        _ -> do
+            compileStmt stmtTrue
+    setAsCurrentLabel ifFalseStmtsLabel
+    case stmtFalse of
+        (BStmt (Block stmts)) -> do
+            compileStmts stmts
+        _ -> do
+            compileStmt stmtFalse
+            
+    previousLabelFollowUp <- getLabelFollowUp previousLabel
+    emitInSpecificBlock previousLabelFollowUp (BranchConditional condition ifTrueStmtsLabel ifFalseStmtsLabel)
+    emitInSpecificBlock ifTrueStmtsLabel (Branch nextBlock)
+    emitInSpecificBlock ifFalseStmtsLabel (Branch nextBlock)
+
+    setAsCurrentLabel nextBlock
+    ask
+compileStmtWithoutBranchToNextBlock (While expr stmt) = do
+    env <- ask
+    let nextBlock = fromJust $ afterBlockJump env
+
+    preConditionLabel <- gets currentLabel
+    conditionLabel <- getNewLabel
+    emitInSpecificBlock preConditionLabel (Branch conditionLabel)
+    condition <- compileExpr expr
+    ifTrueBodyLabel <- getNewLabel
+    afterWhileLabel <- getNewLabel
+    setAsCurrentLabel ifTrueBodyLabel 
+
     case stmt of
         (BStmt (Block stmts)) -> do
             compileStmts stmts
@@ -400,10 +510,9 @@ compileStmt (While expr stmt) = do
             compileStmt stmt
     emit (Branch conditionLabel)
 
-    afterWhileLabel <- getNewLabel
-    
     conditionLabelFollowUp <- getLabelFollowUp conditionLabel
-    emitInSpecificBlock conditionLabelFollowUp (BranchConditional condition ifTrueBodyLabel afterWhileLabel)
+    emitInSpecificBlock conditionLabelFollowUp (BranchConditional condition ifTrueBodyLabel nextBlock)
+    setAsCurrentLabel nextBlock
     ask
 
 compileDecls :: Type -> [Item] -> GenM Env
@@ -626,44 +735,6 @@ compileExpr (ERel expr1 relOp expr2) = do
     })
     emit (Operation left (RelBinOp relOp) right result)
     return result
--- compileExpr (EAnd expr1 expr2) = do
---     store <- get
---     left <- compileExpr expr1
---     right <- compileExpr expr2
---     nextRegister <- getNextRegisterCounter
---     let result = (LLVMVariable {
---         type' = LLVMType Boolean,
---         address = LLVMAddressRegister nextRegister,
---         blockLabel = currentLabel store,
---         ident = Nothing
---     })
---     emit (Operation left (AndOp) right result)
---     return result
--- compileExpr (EOr expr1 expr2) = do
---     store <- get
---     left <- compileExpr expr1
---     right <- compileExpr expr2
---     nextRegister <- getNextRegisterCounter
---     let result = (LLVMVariable {
---         type' = LLVMType Boolean,
---         address = LLVMAddressRegister nextRegister,
---         blockLabel = currentLabel store,
---         ident = Nothing
---     })
---     emit (Operation left (OrOp) right result)
---     return result
-
--- from slides
--- genCond (CAnd c1 c2) lTrue lFalse = do
---     lMid <- freshLabel
---     genCond c1 lMid lFalse
---     emit $ placeLabel lMid
---     genCond c2 lTrue lFalse
--- genCond (COr c1 c2) lTrue lFalse = do
---     lMid <- freshLabel
---     genCond c1 lTrue lMid
---     emit $ placeLabel lMid
---     genCond c2 lTrue lFalse
 compileExpr (EAnd expr1 expr2) = do
     store <- get
     let previousLabel = currentLabel store
