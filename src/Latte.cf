@@ -34,9 +34,9 @@ BStmt.     Stmt ::= Block ;
 
 Decl.      Stmt ::= Type [Item] ";" ;
 
-NoInit.    Item ::= LValue ;
+NoInit.    Item ::= Ident ;
 
-Init.      Item ::= LValue "=" Expr ;
+Init.      Item ::= Ident "=" Expr ;
 
 separator nonempty Item "," ;
 
@@ -87,7 +87,7 @@ separator  Type "," ;
 -- Expressions ---------------------------------------------
 
 
-EField.    Expr8 ::= LValue ;
+ELValue.    Expr8 ::= LValue ;
 
 ELitInt.   Expr8 ::= Integer ;
 

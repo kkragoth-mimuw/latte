@@ -41,7 +41,7 @@ data Stmt
     | SExp Expr
   deriving (Eq, Ord, Show, Read)
 
-data Item = NoInit LValue | Init LValue Expr
+data Item = NoInit Ident | Init Ident Expr
   deriving (Eq, Ord, Show, Read)
 
 data LValue
@@ -69,7 +69,7 @@ data Expr
     | EString String
     | ENewArray Type Expr
     | ENew Type
-    | ECast Type
+    | ENullCast Type
     | Neg Expr
     | Not Expr
     | EMul Expr MulOp Expr

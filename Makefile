@@ -1,7 +1,7 @@
 run:
-	ghc -o latc_llvm src/generated/*.hs src/*.hs
+	ghc -o latc_llvm src/**/*.hs src/*.hs
 wc:
-	find src -name '*.hs' | xargs wc -l
+	find src -name '*.hs' -not -path "*generated*" | xargs wc -l
 generate_grammar:
 	mkdir -p src/generated && \
 	cd src/generated && \

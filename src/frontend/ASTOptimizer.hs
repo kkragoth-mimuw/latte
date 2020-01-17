@@ -26,20 +26,21 @@ class Optimizable f where
     optimize :: f -> OM Program
 
 data Env = Env {
-
+    level :: Integer,
+    vars :: Map.Map Ident (Type, Integer)
 }
 
 initEnv = Env {
-
+    level = 0,
+    vars = Map.empty
 }
 
 data Store = Store {
-    functionVariables :: [(Ident, Type)]
 }
 
 initStore = Store {
-    functionVariables = []
 }
+
 
 instance Optimizable Program where
     optimize program@(Program topdefs) = do
@@ -188,31 +189,3 @@ optimizeExpr e@(EOr e1 e2) = do
         ELitFalse -> return eo2
         _ -> return (EOr eo1 eo2)
 optimizeExpr e = return e
-
--- predefinedFunctions :: [(Ident, (Type, Bool))]
--- predefinedFunctions = ([
---         (Ident "printInt", ((Fun Void [Int]), True)),
---         (Ident "printString", ((Fun Void [Str]), True)),
---         (Ident "error", ((Fun Void []), True)),
---         (Ident "readInt", ((Fun Int []), True)),
---         (Ident "readString", ((Fun Str []), True)),
---         (Ident "__concatStrings", ((Fun Str [Str, Str]), True))
---     ])
-
----
--- exprHasPossibleIO :: Expr -> Bool
--- exprHasPossibleIO (EApp (Ident fnName) args) = (fnName `elem` ([
---         "printInt",
---         "printString",
---         "error",
---         "readInt",
---         "readString"
---     ])) || any exprHasPossibleIO args
--- exprHasPossibleIO (Neg e) = exprHasPossibleIO e
--- exprHasPossibleIO (Not e) = exprHasPossibleIO e
--- exprHasPossibleIO (EMul e1 _ e2) = exprHasPossibleIO e1 || exprHasPossibleIO e2
--- exprHasPossibleIO (EAdd e1 _ e2) = exprHasPossibleIO e1 || exprHasPossibleIO e2
--- exprHasPossibleIO (ERel e1 _ e2) = exprHasPossibleIO e1 || exprHasPossibleIO e2
--- exprHasPossibleIO (EAnd e1 e2) = exprHasPossibleIO e1 || exprHasPossibleIO e2
--- exprHasPossibleIO (EOr e1 e2) = exprHasPossibleIO e1 || exprHasPossibleIO e2
--- functionHasIOExpr _ = False

@@ -110,8 +110,8 @@ Stmt : ';' { AbsLatte.Empty }
      | 'for' '(' Type Ident ':' Ident ')' { AbsLatte.ForArray $3 $4 $6 }
      | Expr ';' { AbsLatte.SExp $1 }
 Item :: { Item }
-Item : LValue { AbsLatte.NoInit $1 }
-     | LValue '=' Expr { AbsLatte.Init $1 $3 }
+Item : Ident { AbsLatte.NoInit $1 }
+     | Ident '=' Expr { AbsLatte.Init $1 $3 }
 ListItem :: { [Item] }
 ListItem : Item { (:[]) $1 } | Item ',' ListItem { (:) $1 $3 }
 LValue :: { LValue }
@@ -142,7 +142,7 @@ Expr7 : 'new' Type '[' Expr ']' { AbsLatte.ENewArray $2 $4 }
       | 'new' Type { AbsLatte.ENew $2 }
       | Expr8 { $1 }
 Expr6 :: { Expr }
-Expr6 : '(' Type ')null' { AbsLatte.ECast $2 } | Expr7 { $1 }
+Expr6 : '(' Type ')null' { AbsLatte.ENullCast $2 } | Expr7 { $1 }
 Expr5 :: { Expr }
 Expr5 : '-' Expr6 { AbsLatte.Neg $2 }
       | '!' Expr6 { AbsLatte.Not $2 }

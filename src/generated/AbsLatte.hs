@@ -41,7 +41,7 @@ data Stmt
     | SExp Expr
   deriving (Eq, Ord, Show, Read)
 
-data Item = NoInit LValue | Init LValue Expr
+data Item = NoInit Ident | Init Ident Expr
   deriving (Eq, Ord, Show, Read)
 
 data LValue
@@ -61,7 +61,7 @@ data Type
   deriving (Eq, Ord, Show, Read)
 
 data Expr
-    = EField LValue
+    = ELValue LValue
     | ELitInt Integer
     | ELitTrue
     | ELitFalse

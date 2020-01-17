@@ -31,17 +31,20 @@ except ``"`` unless preceded by ``\``.
 The set of reserved words is the set of terminals appearing in the grammar. Those reserved words that consist of non-letter characters are called symbols, and they are treated in a different way from those that are similar to identifiers. The lexer follows rules familiar from languages like Haskell, C, and Java, including longest match and spacing conventions.
 
 The reserved words used in Latte are the following:
-  | ``boolean`` | ``else`` | ``false`` | ``if``
-  | ``int`` | ``return`` | ``string`` | ``true``
+  | ``boolean`` | ``class`` | ``else`` | ``extends``
+  | ``false`` | ``for`` | ``if`` | ``int``
+  | ``new`` | ``return`` | ``string`` | ``true``
   | ``void`` | ``while`` |  |
 
 The symbols used in Latte are the following:
-  | ( | ) | , | {
-  | } | ; | = | ++
-  | -- | - | ! | &&
-  | || | + | * | /
-  | % | < | <= | >
-  | >= | == | != |
+  | ( | ) | { | }
+  | ; | , | = | ++
+  | -- | : | . | [
+  | ] | [] | )null | -
+  | ! | && | || | +
+  | * | / | % | <
+  | <= | > | >= | ==
+  | != |  |  |
 
 ===Comments===
 Single-line comments begin with #, //.Multiple-line comments are  enclosed with /* and */.
@@ -54,8 +57,14 @@ All other symbols are terminals.
 
   | //Program// | -> | //[TopDef]//
   | //TopDef// | -> | //Type// //Ident// ``(`` //[Arg]// ``)`` //Block//
+  |  |  **|**  | ``class`` //Ident// ``{`` //[ClassPole]// ``}``
+  |  |  **|**  | ``class`` //Ident// ``extends`` //Ident// ``{`` //[ClassPole]// ``}``
+  | //ClassPole// | -> | //Type// //Ident// ``;``
+  |  |  **|**  | //Type// //Ident// ``(`` //[Arg]// ``)`` //Block//
   | //[TopDef]// | -> | //TopDef//
   |  |  **|**  | //TopDef// //[TopDef]//
+  | //[ClassPole]// | -> | //ClassPole//
+  |  |  **|**  | //ClassPole// //[ClassPole]//
   | //Arg// | -> | //Type// //Ident//
   | //[Arg]// | -> | **eps**
   |  |  **|**  | //Arg//
@@ -66,33 +75,44 @@ All other symbols are terminals.
   | //Stmt// | -> | ``;``
   |  |  **|**  | //Block//
   |  |  **|**  | //Type// //[Item]// ``;``
-  |  |  **|**  | //Ident// ``=`` //Expr// ``;``
-  |  |  **|**  | //Ident// ``++`` ``;``
-  |  |  **|**  | //Ident// ``--`` ``;``
+  |  |  **|**  | //LValue// ``=`` //Expr// ``;``
+  |  |  **|**  | //LValue// ``++`` ``;``
+  |  |  **|**  | //LValue// ``--`` ``;``
   |  |  **|**  | ``return`` //Expr// ``;``
   |  |  **|**  | ``return`` ``;``
   |  |  **|**  | ``if`` ``(`` //Expr// ``)`` //Stmt//
   |  |  **|**  | ``if`` ``(`` //Expr// ``)`` //Stmt// ``else`` //Stmt//
   |  |  **|**  | ``while`` ``(`` //Expr// ``)`` //Stmt//
+  |  |  **|**  | ``for`` ``(`` //Type// //Ident// ``:`` //Ident// ``)``
   |  |  **|**  | //Expr// ``;``
-  | //Item// | -> | //Ident//
-  |  |  **|**  | //Ident// ``=`` //Expr//
+  | //Item// | -> | //LValue//
+  |  |  **|**  | //LValue// ``=`` //Expr//
   | //[Item]// | -> | //Item//
   |  |  **|**  | //Item// ``,`` //[Item]//
+  | //LValue// | -> | //Ident//
+  |  |  **|**  | //LValue// ``.`` //Ident//
+  |  |  **|**  | //LValue// ``[`` //Expr// ``]``
   | //Type// | -> | ``int``
   |  |  **|**  | ``string``
   |  |  **|**  | ``boolean``
   |  |  **|**  | ``void``
+  |  |  **|**  | //Type// ``[]``
+  |  |  **|**  | //Ident//
   | //[Type]// | -> | **eps**
   |  |  **|**  | //Type//
   |  |  **|**  | //Type// ``,`` //[Type]//
-  | //Expr6// | -> | //Ident//
+  | //Expr8// | -> | //LValue//
   |  |  **|**  | //Integer//
   |  |  **|**  | ``true``
   |  |  **|**  | ``false``
-  |  |  **|**  | //Ident// ``(`` //[Expr]// ``)``
+  |  |  **|**  | //LValue// ``(`` //[Expr]// ``)``
   |  |  **|**  | //String//
   |  |  **|**  | ``(`` //Expr// ``)``
+  | //Expr7// | -> | ``new`` //Type// ``[`` //Expr// ``]``
+  |  |  **|**  | ``new`` //Type//
+  |  |  **|**  | //Expr8//
+  | //Expr6// | -> | ``(`` //Type// ``)null``
+  |  |  **|**  | //Expr7//
   | //Expr5// | -> | ``-`` //Expr6//
   |  |  **|**  | ``!`` //Expr6//
   |  |  **|**  | //Expr6//

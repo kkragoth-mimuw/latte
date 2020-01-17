@@ -21,6 +21,7 @@ import           SkelLatte
 
 import           Typechecker (runTypecheck, pprintTypecheckerErrorMsg, initTCEnv)
 import           ASTOptimizer (runASTOptimizer)
+import           NameMangler (runNameMangler)
 import           LLVMCompiler
 
 import           ErrM
@@ -61,7 +62,9 @@ run v p s filePathM = let ts = myLLexer s in case p ts of
                               exitFailure
                             Right _ -> do
                                       optimizedProgram <- runASTOptimizer tree
-                                      -- putStrLn $ show optimizedProgram
+                                      nameMangledProgram <- runNameMangler optimizedProgram
+                                      putStrLn $ show nameMangledProgram
+                                      exitSuccess
                                       compilerInfo <- runLLVMCompiler optimizedProgram
                                       case compilerInfo of
                                         Left error -> do

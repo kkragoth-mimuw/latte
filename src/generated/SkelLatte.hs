@@ -47,8 +47,8 @@ transStmt x = case x of
   SExp expr -> failure x
 transItem :: Item -> Result
 transItem x = case x of
-  NoInit lvalue -> failure x
-  Init lvalue expr -> failure x
+  NoInit ident -> failure x
+  Init ident expr -> failure x
 transLValue :: LValue -> Result
 transLValue x = case x of
   LValue ident -> failure x
@@ -65,7 +65,7 @@ transType x = case x of
   Fun type_ types -> failure x
 transExpr :: Expr -> Result
 transExpr x = case x of
-  EField lvalue -> failure x
+  ELValue lvalue -> failure x
   ELitInt integer -> failure x
   ELitTrue -> failure x
   ELitFalse -> failure x

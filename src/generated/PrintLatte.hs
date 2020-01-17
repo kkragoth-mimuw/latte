@@ -153,8 +153,8 @@ instance Print AbsLatte.Stmt where
 
 instance Print AbsLatte.Item where
   prt i e = case e of
-    AbsLatte.NoInit lvalue -> prPrec i 0 (concatD [prt 0 lvalue])
-    AbsLatte.Init lvalue expr -> prPrec i 0 (concatD [prt 0 lvalue, doc (showString "="), prt 0 expr])
+    AbsLatte.NoInit id -> prPrec i 0 (concatD [prt 0 id])
+    AbsLatte.Init id expr -> prPrec i 0 (concatD [prt 0 id, doc (showString "="), prt 0 expr])
   prtList _ [x] = concatD [prt 0 x]
   prtList _ (x:xs) = concatD [prt 0 x, doc (showString ","), prt 0 xs]
 
@@ -185,7 +185,7 @@ instance Print [AbsLatte.Type] where
 
 instance Print AbsLatte.Expr where
   prt i e = case e of
-    AbsLatte.EField lvalue -> prPrec i 8 (concatD [prt 0 lvalue])
+    AbsLatte.ELValue lvalue -> prPrec i 8 (concatD [prt 0 lvalue])
     AbsLatte.ELitInt n -> prPrec i 8 (concatD [prt 0 n])
     AbsLatte.ELitTrue -> prPrec i 8 (concatD [doc (showString "true")])
     AbsLatte.ELitFalse -> prPrec i 8 (concatD [doc (showString "false")])

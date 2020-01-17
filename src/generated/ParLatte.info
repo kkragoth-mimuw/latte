@@ -45,8 +45,8 @@ Grammar
 	Stmt -> 'while' '(' Expr ')' Stmt                  (31)
 	Stmt -> 'for' '(' Type Ident ':' Ident ')'         (32)
 	Stmt -> Expr ';'                                   (33)
-	Item -> LValue                                     (34)
-	Item -> LValue '=' Expr                            (35)
+	Item -> Ident                                      (34)
+	Item -> Ident '=' Expr                             (35)
 	ListItem -> Item                                   (36)
 	ListItem -> Item ',' ListItem                      (37)
 	LValue -> Ident                                    (38)
@@ -988,10 +988,9 @@ State 50
 	'[]'           shift, and enter state 15
 	L_ident        shift, and enter state 2
 
-	Ident          goto state 75
-	Item           goto state 103
-	ListItem       goto state 104
-	LValue         goto state 105
+	Ident          goto state 103
+	Item           goto state 104
+	ListItem       goto state 105
 
 State 51
 
@@ -1506,7 +1505,6 @@ State 75
 	';'            reduce using rule 38
 	'<'            reduce using rule 38
 	'<='           reduce using rule 38
-	'='            reduce using rule 38
 	'=='           reduce using rule 38
 	'>'            reduce using rule 38
 	'>='           reduce using rule 38
@@ -2030,32 +2028,28 @@ State 102
 
 State 103
 
-	ListItem -> Item .                                  (rule 36)
-	ListItem -> Item . ',' ListItem                     (rule 37)
+	Item -> Ident .                                     (rule 34)
+	Item -> Ident . '=' Expr                            (rule 35)
 
-	','            shift, and enter state 122
-	';'            reduce using rule 36
+	','            reduce using rule 34
+	';'            reduce using rule 34
+	'='            shift, and enter state 122
 
 
 State 104
 
-	Stmt -> Type ListItem . ';'                         (rule 23)
+	ListItem -> Item .                                  (rule 36)
+	ListItem -> Item . ',' ListItem                     (rule 37)
 
-	';'            shift, and enter state 121
+	','            shift, and enter state 121
+	';'            reduce using rule 36
 
 
 State 105
 
-	Item -> LValue .                                    (rule 34)
-	Item -> LValue . '=' Expr                           (rule 35)
-	LValue -> LValue . '.' Ident                        (rule 39)
-	LValue -> LValue . '[' Expr ']'                     (rule 40)
+	Stmt -> Type ListItem . ';'                         (rule 23)
 
-	','            reduce using rule 34
-	'.'            shift, and enter state 109
-	';'            reduce using rule 34
-	'='            shift, and enter state 120
-	'['            shift, and enter state 111
+	';'            shift, and enter state 120
 
 
 State 106
@@ -2293,34 +2287,6 @@ State 119
 
 State 120
 
-	Item -> LValue '=' . Expr                           (rule 35)
-
-	'!'            shift, and enter state 60
-	'('            shift, and enter state 61
-	'-'            shift, and enter state 62
-	'false'        shift, and enter state 64
-	'new'          shift, and enter state 67
-	'true'         shift, and enter state 69
-	L_ident        shift, and enter state 2
-	L_integ        shift, and enter state 72
-	L_quoted       shift, and enter state 73
-
-	Ident          goto state 75
-	Integer        goto state 45
-	String         goto state 46
-	LValue         goto state 76
-	Expr8          goto state 51
-	Expr7          goto state 52
-	Expr6          goto state 53
-	Expr5          goto state 54
-	Expr4          goto state 55
-	Expr3          goto state 56
-	Expr2          goto state 57
-	Expr1          goto state 58
-	Expr           goto state 140
-
-State 121
-
 	Stmt -> Type ListItem ';' .                         (rule 23)
 
 	'!'            reduce using rule 23
@@ -2346,16 +2312,43 @@ State 121
 	L_quoted       reduce using rule 23
 
 
-State 122
+State 121
 
 	ListItem -> Item ',' . ListItem                     (rule 37)
 
 	L_ident        shift, and enter state 2
 
+	Ident          goto state 103
+	Item           goto state 104
+	ListItem       goto state 140
+
+State 122
+
+	Item -> Ident '=' . Expr                            (rule 35)
+
+	'!'            shift, and enter state 60
+	'('            shift, and enter state 61
+	'-'            shift, and enter state 62
+	'false'        shift, and enter state 64
+	'new'          shift, and enter state 67
+	'true'         shift, and enter state 69
+	L_ident        shift, and enter state 2
+	L_integ        shift, and enter state 72
+	L_quoted       shift, and enter state 73
+
 	Ident          goto state 75
-	Item           goto state 103
-	ListItem       goto state 139
-	LValue         goto state 105
+	Integer        goto state 45
+	String         goto state 46
+	LValue         goto state 76
+	Expr8          goto state 51
+	Expr7          goto state 52
+	Expr6          goto state 53
+	Expr5          goto state 54
+	Expr4          goto state 55
+	Expr3          goto state 56
+	Expr2          goto state 57
+	Expr1          goto state 58
+	Expr           goto state 139
 
 State 123
 
@@ -2673,17 +2666,17 @@ State 138
 
 State 139
 
-	ListItem -> Item ',' ListItem .                     (rule 37)
+	Item -> Ident '=' Expr .                            (rule 35)
 
-	';'            reduce using rule 37
+	','            reduce using rule 35
+	';'            reduce using rule 35
 
 
 State 140
 
-	Item -> LValue '=' Expr .                           (rule 35)
+	ListItem -> Item ',' ListItem .                     (rule 37)
 
-	','            reduce using rule 35
-	';'            reduce using rule 35
+	';'            reduce using rule 37
 
 
 State 141

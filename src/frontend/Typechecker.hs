@@ -154,11 +154,6 @@ typecheckMainBlock = do
         Just ((Fun Int _), _) -> return ()
         _ -> throwError $ initTypecheckError $ TCMainInvalidReturnType
 
--- typecheckTopDefs :: [TopDef] -> TCM ()
--- typecheckTopDefs [] = ()
--- typecheckTopDefs (x:xs) = do
---     typecheckTopDef x
---     typecheckTopDefs xs
 
 typecheckTopDef :: TopDef -> TCM ()
 typecheckTopDef (FnDef fnType fnName args (Block stmts)) = do 
@@ -168,9 +163,6 @@ typecheckTopDef (FnDef fnType fnName args (Block stmts)) = do
         throwError $ initTypecheckError $ TCMainInvalidArgs
     else do
         env <- ask
-        -- let funcType = Fun fnType (Prelude.map argToType args)
-        -- let newTypesMap = Map.insert fnName (funcType, level env) (typesMap env)
-        -- let newEnv = env { typesMap = newTypesMap }
         let newEnvForFunction = Prelude.foldr updateEnv env args
 
         local (const $ indicateReturnType (increaseLevel newEnvForFunction) fnType) (typecheckStmts stmts)
@@ -235,21 +227,21 @@ typecheckStmt :: Stmt -> TCM ()
 typecheckStmt Empty = return ()
 typecheckStmt (BStmt (Block stmts)) = local increaseLevel (typecheckStmts stmts)
 -- typecheckStmt (Decl) -> typecheckDecl
-typecheckStmt (Ass ident expr) = do
-    lvalueType <- extractVariableType ident
+typecheckStmt (Ass lvalue expr) = do
+    lvalueType <- extractLValueType lvalue
     rvalueType <- typecheckExpr expr
 
     when (lvalueType /= rvalueType)
         (throwError $ initTypecheckError $ TCInvalidTypeExpectedType rvalueType lvalueType)
 
-typecheckStmt (Incr ident) = do
-    lvalueType <- extractVariableType ident
+typecheckStmt (Incr lvalue) = do
+    lvalueType <- extractLValueType lvalue
 
     unless (lvalueType == Int)
         (throwError $ initTypecheckError $ TCInvalidTypeExpectedType lvalueType Int)
 
-typecheckStmt (Decr ident) = do
-    lvalueType <- extractVariableType ident
+typecheckStmt (Decr lvalue) = do
+    lvalueType <- extractLValueType lvalue
 
     unless (lvalueType == Int)
         (throwError $ initTypecheckError $ TCInvalidTypeExpectedType lvalueType Int)
@@ -346,13 +338,23 @@ typecheckExpr(EAdd expr1 addop expr2) = do
         (Str, x, Plus)   -> throwError $ initTypecheckError $ TCInvalidTypeExpectedType x Str
         (Int, x, _)      -> throwError $ initTypecheckError $ TCInvalidTypeExpectedType x Int
         (x, _, _)        -> throwError $ initTypecheckError $ TCInvalidTypeExpectedTypes x [Int, Str]
-
-typecheckExpr(EVar ident) = do 
-    extractVariableType ident
-
-typecheckExpr(EApp ident exprs) = do
-    funcType <- extractVariableType ident
+typecheckExpr(EApp lvalue exprs) = do
+    name <- getFuncNameFromLValue lvalue
+    funcType <- extractVariableType name
     typecheckFuncApplication funcType exprs
+typecheckExpr (ELValue lvalue) = do
+    type' <- extractLValueType lvalue
+    return type'
+getFuncNameFromLValue :: LValue -> TCM Ident
+getFuncNameFromLValue  (LValue ident) = do
+    return ident
+getFuncNameFromLValue  _ = error "todo"
+
+extractLValueType :: LValue -> TCM Type
+extractLValueType (LValue ident) = do
+    extractVariableType ident
+extractLValueType _ = error "TODO"
+
 
 typecheckFuncApplication :: Type -> [Expr] -> TCM Type
 typecheckFuncApplication (Fun returnType argTypes) exprs = do

@@ -4,19 +4,6 @@
 -- on mac:  /usr/local/opt/llvm/bin/llvm-as
 -- export PATH=$PATH:/usr/local/opt/llvm/bin/
 
--- TESTING:
--- Tests summary for BENCORE
--- Correct tests:  22
--- Incorrect tests:  0
--- Tests summary for STUDENTS
--- Correct tests:  17
--- Incorrect tests:  3
--- List of problematic tests:
--- compilation errors: ['escaped_string.lat', 'negation.lat', 'print_complicated_string.lat']
--- Tests summary for MY
--- Correct tests:  2
--- Incorrect tests:  0
-
 module LLVMCompiler where
 
 import           Control.Monad.Except
@@ -31,7 +18,7 @@ import Text.Printf
 
 import AbsLatte 
 
-debugPrint = 1
+debugPrint = 0
 phiOptimization = 1
 
 type GenM a = (ExceptT CompilationError (ReaderT Env (StateT Store IO) )) a
@@ -208,8 +195,8 @@ compileFnDef (FnDef type' ident args (Block stmts)) = do
 
     functionBlocksMap <- gets functionBlocks
     let blockMap = fromJust $ Map.lookup ident functionBlocksMap
-    -- optimizedBlockMap <- optimizeBlockMapReturn blockMap
-    let optimizedBlockMap = blockMap -- noOptimize
+    optimizedBlockMap <- optimizeBlockMapReturn blockMap
+    -- let optimizedBlockMap = blockMap -- noOptimize
 
     modify (\store -> (store {
         functionBlocks = Map.insert ident (optimizedBlockMap) functionBlocksMap
@@ -219,10 +206,6 @@ compileFnDef (FnDef type' ident args (Block stmts)) = do
 
     store <- get
     
-    -- liftIO $ putStrLn $ "; " ++ "Function Label Skip Map" ++ (show ident)
-    -- liftIO $ putStrLn ("; " ++ (show $ fromJust $ Map.lookup (currentFunction store) (functionsLabelFollowUp store)))
-    -- liftIO $ putStrLn $ ""
-
     let functionDef = printf ("define %s @%s(%s) {\n") (showTypeInLLVM type') (showIdent ident) (showArgs args)
     let blockCode = showBlocks (Map.elems $ fromJust $ Map.lookup (ident) (functionBlocks store))
 
@@ -270,8 +253,6 @@ codeUntilBranchOrReturn (x:xs) = case x of
     BranchConditional _ _ _ -> [x]
     _ -> [x] ++ codeUntilBranchOrReturn xs
 
-optimizeAndCheckLLVMBlocks :: [LLVMBlock] -> GenM ()
-optimizeAndCheckLLVMBlocks blocks = error "no blocks" 
 
 prepareArgs :: [Arg] -> GenM Env
 prepareArgs [] = ask
@@ -337,13 +318,13 @@ compileStmt (BStmt block) = do
     compileBlock block
     ask
 compileStmt (Decl type' items) = compileDecls type' items
-compileStmt (Ass ident expr) = do
-    lhs <- getVar ident
+compileStmt (Ass lvalue expr) = do
+    lhs <- getLValue lvalue
     rhs <- compileExpr expr
     emit (MemoryStore rhs lhs)
     ask
-compileStmt (Incr ident) = compileStmt (Ass ident (EAdd (EVar ident) Plus (ELitInt 1)))
-compileStmt (Decr ident) = compileStmt (Ass ident (EAdd (EVar ident) Minus (ELitInt 1)))
+compileStmt (Incr lvalue) = compileStmt (Ass lvalue (EAdd (ELValue lvalue) Plus (ELitInt 1)))
+compileStmt (Decr lvalue) = compileStmt (Ass lvalue (EAdd (ELValue lvalue) Minus (ELitInt 1)))
 compileStmt (Ret expr) = do
     val <- compileExpr expr
     emit $ Return val
@@ -482,7 +463,7 @@ defaultVariable Boolean = do
 defaultVariable Str = compileExpr (EString "")
 
 compileExpr :: Expr -> GenM LLVMVariable
-compileExpr (EVar ident) = do
+compileExpr (ELValue (LValue ident)) = do
     store <- get
     varsMap <- asks vars
     let var = fromJust $ Map.lookup ident varsMap
@@ -495,6 +476,8 @@ compileExpr (EVar ident) = do
     })
     emit (Load registerVar var)
     return registerVar
+compileExpr (ELValue(LValueClassField lvalue ident)) = error "TODO"
+compileExpr (ELValue(LValueArrayElem lvalue expr)) = error "TODO"
 compileExpr (ELitInt i) = do
     blockLabel <- gets currentLabel
     return LLVMVariable {
@@ -519,13 +502,14 @@ compileExpr(ELitFalse) = do
         blockLabel = blockLabel,
         ident = Nothing
     }
-compileExpr (EApp ident exprs) = do
+compileExpr (EApp lvalue exprs) = do
     args <- mapM compileExpr exprs
     store <- get
-    let func = fromJust $ Map.lookup ident (functions store)
+    name <- getFuncNameFromLValue lvalue
+    let func = fromJust $ Map.lookup name (functions store)
     case func of
         (Fun Void _) -> do
-            emit (CallVoid ident args)
+            emit (CallVoid name args)
             return (LLVMVariable {
                 type' = LLVMType Void,
                 address = LLVMAddressVoid,
@@ -540,7 +524,7 @@ compileExpr (EApp ident exprs) = do
                 blockLabel = (currentLabel store),
                 ident = Nothing
             })
-            emit (Call result ident args)
+            emit (Call result name args)
             return result
 compileExpr (EString s) = do
     store <- get
@@ -774,10 +758,17 @@ getLoc ident = do
     let var = fromJust $ Map.lookup ident varsMap
     return $ address var
 
-getVar :: Ident -> GenM LLVMVariable
-getVar ident = do
+getLValue :: LValue -> GenM LLVMVariable
+getLValue (LValue ident) = do
     varsMap <- asks vars
     return $ fromJust $ Map.lookup ident varsMap
+getLValue _ = error "todo"
+
+
+getFuncNameFromLValue :: LValue -> GenM Ident
+getFuncNameFromLValue  (LValue ident) = do
+    return ident
+getFuncNameFromLValue  _ = error "todo"
 
 showIdent :: Ident -> String
 showIdent (Ident s) = s
