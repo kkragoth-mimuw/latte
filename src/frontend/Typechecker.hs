@@ -66,6 +66,7 @@ data TypecheckError = TCInvalidTypeExpectedType Type Type
                     | TCInvalidFunctionAppTypes [Type] [Type]
                     | TCInvalidNumberOfArguments
                     | TCUndeclaredVariable Ident
+                    | TCNoMain 
                     | TCNotLValue
                     | TCRedeclaration Ident
                     | TCReturn
@@ -83,7 +84,8 @@ instance Show TypecheckError where
     show TCInvalidNumberOfArguments                      = "Passed invalid number of arguments to function"
     show (TCDebug str)                                   = printf "%s" (show str)
     show TCReturn                                        = "return error"
-    show (TCUndeclaredVariable Ident)                    = printf "Use of undeclared variable %s" (show ident)
+    show TCNoMain                                        = "Program has no main function"
+    show (TCUndeclaredVariable ident)                    = printf "Use of undeclared variable %s" (show ident)
     show _ = ""
 
 data TypecheckErrorWithLogging = TypecheckErrorWithLogging TypecheckError Integer [String] deriving (Show)
@@ -153,7 +155,7 @@ typecheckMainBlock = do
     env <- ask
 
     case Map.lookup (Ident "main") (typesMap env) of
-        Nothing -> return ()
+        Nothing -> throwError $ initTypecheckError $ TCNoMain
         Just ((Fun Int _), _) -> return ()
         _ -> throwError $ initTypecheckError $ TCMainInvalidReturnType
 
