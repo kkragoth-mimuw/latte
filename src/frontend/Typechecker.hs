@@ -16,9 +16,10 @@ type TCM a = (ExceptT TypecheckErrorWithLogging (Reader TCEnv)) a
 
 data TCEnv = TCEnv {
     typesMap :: Map.Map Ident (Type, Integer),
-    classes :: Map.Map Ident (),
+    classes :: Map.Map Ident TCClass,
     level :: Integer,
-    currentFunctionReturnType :: Maybe Type
+    currentFunctionReturnType :: Maybe Type,
+    currentClass :: Maybe TCClass
 }
 
 initTCEnv = TCEnv {
@@ -31,8 +32,27 @@ initTCEnv = TCEnv {
     ],
     classes = Map.empty,
     level = 0,
-    currentFunctionReturnType = Nothing
+    currentFunctionReturnType = Nothing,
+    currentClass = Nothing
 }
+
+data TCClass = TCClass {
+    className :: Ident,
+    classFields :: [ClassField],
+    classMethods :: [ClassMethod]
+} deriving (Show)
+
+data ClassField = ClassField {
+    classFieldName :: Ident,
+    classFieldType :: Type
+} deriving (Show)
+
+data ClassMethod = ClassMethod {
+    classMethodName :: Ident,
+    classMethodArgs :: [Arg],
+    classMethodBlock :: Block,
+    classMethodReturnType :: Type
+} deriving (Show)
 
 updateEnv :: Arg -> TCEnv -> TCEnv
 updateEnv (Arg type' ident) env = env { typesMap = updatedTypesMap }
@@ -78,6 +98,10 @@ data TypecheckError = TCInvalidTypeExpectedType Type Type
                     | TCRepeatedArguments Ident
                     | TCVoidArgument Ident
                     | TCVoidType Ident
+                    | TCClassRedeclaration Ident
+                    | TCAccessOnNonClass
+                    | TCUndeclaredClass Ident
+                    | TCClassDoesntHaveField Ident Ident
                     | TCDebug String
 
 instance Show TypecheckError where
@@ -97,6 +121,10 @@ instance Show TypecheckError where
     show (TCRepeatedArguments (Ident ident))             = printf ("Function %s has repeated arguments") (show ident)
     show (TCVoidArgument (Ident ident))                  = printf ("Argument of function %s has invalid type void") (show ident)
     show (TCVoidType (Ident ident))                      = printf ("Tried to declare %s as void") (show ident)
+    show (TCClassRedeclaration (Ident ident))            = printf ("Tried to redeclare class %s") (show ident)
+    show (TCAccessOnNonClass)                            = printf ("Tried to access member of type which isn't class")
+    show (TCUndeclaredClass (Ident ident))               = printf ("Non existing class %s") (show ident)
+    show (TCClassDoesntHaveField (Ident c) (Ident f))    = printf ("Class %s doesn't have field %s") (show c) (show f)
     show _ = ""
 
 data TypecheckErrorWithLogging = TypecheckErrorWithLogging TypecheckError Integer [String] deriving (Show)
@@ -144,16 +172,16 @@ class Typecheckable f where
 
 instance Typecheckable Program where
     typecheckProgram (Program topdefs) = do
-        env <- fillFunctionsInformations topdefs
+        env <- fillTopDefsInformation topdefs
         local (const env) (mapM_ typecheckTopDef topdefs)
         local (const env) typecheckMainBlock
         return ()
 
-fillFunctionsInformations :: [TopDef] -> TCM TCEnv
-fillFunctionsInformations [] = ask
-fillFunctionsInformations ((FnDef fnType fnName args (Block stmts)):xs) = do
+fillTopDefsInformation :: [TopDef] -> TCM TCEnv
+fillTopDefsInformation [] = ask
+fillTopDefsInformation ((FnDef fnType fnName args (Block stmts)):xs) = do
     checkIfIsAlreadyDeclaredATCurrentLevel fnName
-    env <- fillFunctionsInformations xs
+    env <- fillTopDefsInformation xs
 
     case Map.lookup fnName (typesMap env) of
         Just _ -> throwError $ initTypecheckError $ TCFunctionRedeclaration fnName
@@ -163,7 +191,70 @@ fillFunctionsInformations ((FnDef fnType fnName args (Block stmts)):xs) = do
                 let newEnv = env { typesMap = newTypesMap }
 
                 return newEnv
+
+fillTopDefsInformation ((ClassDef cName classPoles):xs) = do
+    env <- fillTopDefsInformation xs
+
+    case Map.lookup cName (classes env) of
+        Just _ -> throwError $ initTypecheckError $ TCClassRedeclaration cName
+        Nothing -> do
+            let fields = filter (\classPole -> case classPole of 
+                        (ClassFieldDef _ _) -> True
+                        _ -> False
+                    ) classPoles
+
+            -- TODO TYPES VOID, NAMES NO REPEAT
+            let methods = filter (\classPole -> case classPole of 
+                        (ClassMethodDef _ _ _ _) -> True
+                        _ -> False
+                    ) classPoles
+
+            let cFields = map (\(ClassFieldDef type' ident') -> ClassField {
+                            classFieldName = ident',
+                            classFieldType = type'
+                        }
+                    ) fields
+
+            let cMethods = map (\(ClassMethodDef type' ident' args block) -> ClassMethod {
+                classMethodName = ident',
+                classMethodArgs = args,
+                classMethodBlock = block,
+                classMethodReturnType = type'
+            }) methods
+
+            let classDef = TCClass {
+                className = cName,
+                classFields = cFields,
+                classMethods = cMethods
+            }
+
+            let newEnv = env {
+                classes = Map.insert cName classDef (classes env)
+            }
+
+            return newEnv
+
+typecheckAllMethods :: TCM ()
+typecheckAllMethods = do
+    classesMap <- asks classes
     
+    forM_ (Map.elems classesMap) typecheckClassMethods 
+
+typecheckClassMethods :: TCClass -> TCM ()
+typecheckClassMethods c = do
+    env <- ask
+    let newEnv = env { currentClass = Just c }
+
+    forM_ (classMethods c) (\classMethod -> 
+                local (const newEnv) (
+                        typecheckTopDef (FnDef 
+                            (classMethodReturnType classMethod)
+                            (classMethodName classMethod)
+                            (classMethodArgs classMethod)
+                            (classMethodBlock classMethod)
+                        )
+                )
+        )
 
 typecheckMainBlock :: TCM ()
 typecheckMainBlock = do
@@ -196,6 +287,7 @@ typecheckTopDef (FnDef fnType fnName args (Block stmts)) = do
         local (const $ indicateReturnType (increaseLevel newEnvForFunction) fnType) (typecheckStmts stmts)
 
         return ()
+typecheckTopDef _ = return ()
 
 
 argToType :: Arg -> Type
@@ -256,7 +348,6 @@ typecheckStmtWithLogging stmt = typecheckStmt stmt `catchError` (\typecheckError
 typecheckStmt :: Stmt -> TCM ()
 typecheckStmt Empty = return ()
 typecheckStmt (BStmt (Block stmts)) = local increaseLevel (typecheckStmts stmts)
--- typecheckStmt (Decl) -> typecheckDecl
 typecheckStmt (Ass lvalue expr) = do
     lvalueType <- extractLValueType lvalue
     rvalueType <- typecheckExpr expr
@@ -387,6 +478,17 @@ getFuncNameFromLValue  _ = error "todo"
 extractLValueType :: LValue -> TCM Type
 extractLValueType (LValue ident) = do
     extractVariableType ident
+extractLValueType (LValueClassField lvalue ident) = do
+    cType <- extractLValueType lvalue
+    case cType of
+        ClassType cIdent -> do
+            env <- ask
+            case Map.lookup (cIdent) (classes env) of
+                Nothing -> throwError $ initTypecheckError $ TCUndeclaredClass cIdent
+                Just c -> case find (\cField -> (classFieldName cField) == ident) (classFields c) of
+                    Nothing -> throwError $ initTypecheckError $ TCClassDoesntHaveField (cIdent) (ident)
+                    Just field -> return $ classFieldType field
+        _ ->  throwError $ initTypecheckError $ TCAccessOnNonClass 
 extractLValueType _ = error "TODO"
 
 

@@ -1,7 +1,6 @@
 {-# LANGUAGE LambdaCase #-}
 
 -- TODO: https://buildmedia.readthedocs.org/media/pdf/mapping-high-level-constructs-to-llvm-ir/latest/mapping-high-level-constructs-to-llvm-ir.pdf
--- on mac:  /usr/local/opt/llvm/bin/llvm-as
 -- export PATH=$PATH:/usr/local/opt/llvm/bin/
 
 module LLVMCompiler where
@@ -36,6 +35,7 @@ runLLVMCompiler program = do
         (Right res, store) -> do
             let predefinedFunctions = showPredefinedFunctions
             let stringsDecl =  showStringsDeclarations (stringsMap store)
+            let classDecl =  showClassesDeclarations (classes store)
             return $ Right (predefinedFunctions ++ "\n" ++stringsDecl ++ res)
 
 class Compilable f  where
@@ -91,6 +91,11 @@ showStringsDeclarations :: Map.Map String Integer -> String
 showStringsDeclarations stringMap = intercalate ("\n") (
         map (\(str, i) -> printf ("@s%s = private constant [%s x i8] c\"%s\\00\"") (show i) (show $ (length str) + 1) str)
         (Map.toList stringMap)
+    ) ++ "\n\n"
+
+showClassesDeclarations :: Map.Map Ident LLVMClass -> String
+showClassesDeclarations classMap = intercalate ("\n") (
+        map printLLVMClass (Map.elems classMap)
     ) ++ "\n\n"
 
 data Op = AddBinOp AddOp | MulBinOp MulOp | RelBinOp RelOp | AndOp | OrOp | XorOp deriving (Show)
@@ -248,6 +253,8 @@ compileFnDef (FnDef type' ident args (Block stmts)) = do
     let blockCode = showBlocks (Map.elems $ fromJust $ Map.lookup (ident) (functionBlocks store))
 
     return (functionDef ++ blockCode ++ "}\n\n")
+
+compileFnDef _ = return ""
 
 optimizeBlockMapReturn :: BlockMap -> GenM BlockMap
 optimizeBlockMapReturn blockMap = do
@@ -902,6 +909,9 @@ showTypeInLLVM _ = ""
 dereferencePointer :: LLVMType -> LLVMType
 dereferencePointer (LLVMTypePointer t) = t
 dereferencePointer _ = error "not a pointer!"
+
+printLLVMClass :: LLVMClass -> String
+printLLVMClass c = printf ("%%%s = type {\n %s \n}") (showIdent $ className c) (intercalate (",\n") (map showTypeInLLVM (map (\cF -> classFieldType cF) (classFields c))))
 
 -- I dont want to do this in typeclass SHOW cause I need additional info for debuging for optimizations
 printLLVMType :: LLVMType -> String

@@ -57,6 +57,7 @@ optimizeTopDef (FnDef Void ident args (Block [])) = do
 optimizeTopDef (FnDef type' ident args block@(Block stmts)) = do
     optimizedStmts <- optimizeStmts stmts
     return (FnDef type' ident args (Block optimizedStmts))
+optimizeTopDef f = return f
 
 optimizeStmts :: [Stmt] -> OM [Stmt]
 optimizeStmts [] = return []
