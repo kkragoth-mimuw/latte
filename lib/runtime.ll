@@ -119,6 +119,23 @@ declare i64 @llvm.objectsize.i64.p0i8(i8*, i1, i1, i1) #5
 ; Function Attrs: nounwind
 declare i8* @__strcat_chk(i8*, i8*, i64) #4
 
+; Function Attrs: noinline nounwind optnone ssp uwtable
+define i8* @__compareStrings(i8*, i8*) #0 {
+  %3 = alloca i8*, align 8
+  %4 = alloca i8*, align 8
+  store i8* %0, i8** %3, align 8
+  store i8* %1, i8** %4, align 8
+  %5 = load i8*, i8** %3, align 8
+  %6 = load i8*, i8** %4, align 8
+  %7 = call i32 @strcmp(i8* %5, i8* %6)
+  %8 = icmp eq i32 %7, 0
+  %9 = zext i1 %8 to i64
+  %10 = inttoptr i64 %9 to i8*
+  ret i8* %10
+}
+
+declare i32 @strcmp(i8*, i8*) #1
+
 attributes #0 = { noinline nounwind optnone ssp uwtable "correctly-rounded-divide-sqrt-fp-math"="false" "darwin-stkchk-strong-link" "disable-tail-calls"="false" "less-precise-fpmad"="false" "min-legal-vector-width"="0" "no-frame-pointer-elim"="true" "no-frame-pointer-elim-non-leaf" "no-infs-fp-math"="false" "no-jump-tables"="false" "no-nans-fp-math"="false" "no-signed-zeros-fp-math"="false" "no-trapping-math"="false" "probe-stack"="___chkstk_darwin" "stack-protector-buffer-size"="8" "target-cpu"="penryn" "target-features"="+cx16,+fxsr,+mmx,+sahf,+sse,+sse2,+sse3,+sse4.1,+ssse3,+x87" "unsafe-fp-math"="false" "use-soft-float"="false" }
 attributes #1 = { "correctly-rounded-divide-sqrt-fp-math"="false" "darwin-stkchk-strong-link" "disable-tail-calls"="false" "less-precise-fpmad"="false" "no-frame-pointer-elim"="true" "no-frame-pointer-elim-non-leaf" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "no-signed-zeros-fp-math"="false" "no-trapping-math"="false" "probe-stack"="___chkstk_darwin" "stack-protector-buffer-size"="8" "target-cpu"="penryn" "target-features"="+cx16,+fxsr,+mmx,+sahf,+sse,+sse2,+sse3,+sse4.1,+ssse3,+x87" "unsafe-fp-math"="false" "use-soft-float"="false" }
 attributes #2 = { noreturn "correctly-rounded-divide-sqrt-fp-math"="false" "darwin-stkchk-strong-link" "disable-tail-calls"="false" "less-precise-fpmad"="false" "no-frame-pointer-elim"="true" "no-frame-pointer-elim-non-leaf" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "no-signed-zeros-fp-math"="false" "no-trapping-math"="false" "probe-stack"="___chkstk_darwin" "stack-protector-buffer-size"="8" "target-cpu"="penryn" "target-features"="+cx16,+fxsr,+mmx,+sahf,+sse,+sse2,+sse3,+sse4.1,+ssse3,+x87" "unsafe-fp-math"="false" "use-soft-float"="false" }

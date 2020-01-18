@@ -3,6 +3,7 @@ module Typechecker where
 import Control.Monad.Except
 import Control.Monad.Reader
 import qualified Data.Map as Map
+import qualified Data.Set as S
 import Data.Char
 import Data.List
 import Data.Bool
@@ -69,15 +70,21 @@ data TypecheckError = TCInvalidTypeExpectedType Type Type
                     | TCNoMain 
                     | TCNotLValue
                     | TCRedeclaration Ident
+                    | TCFunctionRedeclaration Ident
                     | TCReturn
                     | TCMainInvalidArgs
                     | TCMainInvalidReturnType
+                    | TCLiteralOverflow Integer
+                    | TCRepeatedArguments Ident
+                    | TCVoidArgument Ident
+                    | TCVoidType Ident
                     | TCDebug String
 
 instance Show TypecheckError where
     show (TCInvalidTypeExpectedType type' allowedType)   = printf "Invalid type: %s. Expected: %s" (prettyShowType type') (prettyShowType allowedType)
     show (TCInvalidTypeExpectedTypes type' allowedTypes) = printf "Invalid type: %s. Expected %s" (prettyShowType type') (intercalate " or " (map prettyShowType allowedTypes))
     show (TCRedeclaration (Ident ident))                 = printf "Tried to redeclare: %s" (show ident)
+    show (TCFunctionRedeclaration (Ident ident))         = printf "Tried to redeclare function: %s" (show ident)
     show (TCMainInvalidArgs)                             = "Main shouldn't take any arguments!"
     show (TCMainInvalidReturnType)                       = "Main should only return int"
     show TCNotLValue                                     = "Not lvalue"
@@ -85,7 +92,11 @@ instance Show TypecheckError where
     show (TCDebug str)                                   = printf "%s" (show str)
     show TCReturn                                        = "return error"
     show TCNoMain                                        = "Program has no main function"
-    show (TCUndeclaredVariable ident)                    = printf "Use of undeclared variable %s" (show ident)
+    show (TCLiteralOverflow i)                           = printf "Constant %s is too large" (show i)
+    show (TCUndeclaredVariable (Ident ident))            = printf "Use of undeclared variable %s" (show ident)
+    show (TCRepeatedArguments (Ident ident))             = printf ("Function %s has repeated arguments") (show ident)
+    show (TCVoidArgument (Ident ident))                  = printf ("Argument of function %s has invalid type void") (show ident)
+    show (TCVoidType (Ident ident))                      = printf ("Tried to declare %s as void") (show ident)
     show _ = ""
 
 data TypecheckErrorWithLogging = TypecheckErrorWithLogging TypecheckError Integer [String] deriving (Show)
@@ -143,11 +154,15 @@ fillFunctionsInformations [] = ask
 fillFunctionsInformations ((FnDef fnType fnName args (Block stmts)):xs) = do
     checkIfIsAlreadyDeclaredATCurrentLevel fnName
     env <- fillFunctionsInformations xs
-    let funcType = Fun fnType (Prelude.map argToType args)
-    let newTypesMap = Map.insert fnName (funcType, level env) (typesMap env)
-    let newEnv = env { typesMap = newTypesMap }
 
-    return newEnv
+    case Map.lookup fnName (typesMap env) of
+        Just _ -> throwError $ initTypecheckError $ TCFunctionRedeclaration fnName
+        Nothing -> do
+                let funcType = Fun fnType (Prelude.map argToType args)
+                let newTypesMap = Map.insert fnName (funcType, level env) (typesMap env)
+                let newEnv = env { typesMap = newTypesMap }
+
+                return newEnv
     
 
 typecheckMainBlock :: TCM ()
@@ -162,7 +177,15 @@ typecheckMainBlock = do
 
 typecheckTopDef :: TopDef -> TCM ()
 typecheckTopDef (FnDef fnType fnName args (Block stmts)) = do 
-    -- checkIfIsAlreadyDeclaredATCurrentLevel fnName
+    let argsNames = map (\(Arg _ ident) -> ident) args
+    let argsTypes = map (\(Arg type' _) -> type') args
+
+    unless (allUnique argsNames)
+        (throwError $ initTypecheckError $ TCRepeatedArguments fnName)
+
+    unless (Void `notElem` argsTypes)
+        (throwError $ initTypecheckError $ TCVoidArgument fnName)
+
     let (Ident name) = fnName
     if (name == "main" && length args /= 0) then
         throwError $ initTypecheckError $ TCMainInvalidArgs
@@ -195,6 +218,8 @@ typecheckDeclWithLogging :: Stmt -> TCM TCEnv
 typecheckDeclWithLogging stmt = typecheckDecl stmt `catchError` (\typecheckError -> throwError (appendLogToTypecheckError typecheckError stmt))
 
 typecheckDecl :: Stmt -> TCM TCEnv
+typecheckDecl (Decl Void ((Init ident _):_)) = throwError $ initTypecheckError $ TCVoidType ident
+typecheckDecl (Decl Void ((NoInit ident):_)) = throwError $ initTypecheckError $ TCVoidType ident
 typecheckDecl (Decl type' []) = ask
 typecheckDecl (Decl type' (item:items)) = do
     env <- typecheckDeclItem type' item
@@ -291,12 +316,14 @@ typecheckStmt (While expr stmt) = do
 
 typecheckStmt (SExp expr) = typecheckExpr expr >> return ()
 
+typecheckStmt decl = typecheckStmtOrDeclaration decl >> return ()
+
 typecheckExprWithErrorLogging :: Expr -> TCM Type
 typecheckExprWithErrorLogging expr = typecheckExpr expr `catchError` (\typecheckError -> throwError (appendLogToTypecheckError typecheckError expr))
 
 typecheckExpr :: Expr -> TCM Type
 typecheckExpr (EString _) = return Str
-typecheckExpr (ELitInt _) = return Int
+typecheckExpr (ELitInt i) = if (i > 2147483647 || i < -2147483648) then (throwError $ initTypecheckError $ TCLiteralOverflow i) else return Int
 typecheckExpr (ELitTrue) = return Boolean
 typecheckExpr (ELitFalse) = return Boolean
 typecheckExpr (EOr expr1 expr2) = do
@@ -332,6 +359,8 @@ typecheckExpr (ERel exprLeft op exprRight) = do
     case (left, right, op) of
         (Boolean, Boolean, EQU) -> return Boolean
         (Boolean, Boolean, NE) -> return Boolean
+        (Str, Str, EQU) -> return Boolean
+        (Str, Str, NE) -> return Boolean
         (Int, Int, _) -> return Boolean
         (Int, x, _)   -> throwError $ initTypecheckError $ TCInvalidTypeExpectedType x Int
         (x, _, _)     -> throwError $ initTypecheckError $ TCInvalidTypeExpectedType x Int
@@ -386,3 +415,9 @@ isStmtDeclaration :: Stmt -> Bool
 isStmtDeclaration stmt = case stmt of
     (Decl _  _) -> True
     _          -> False
+
+allUnique xs = foldr go (\s -> s `seq` True) xs S.empty
+    where
+        go x k s
+            | S.member x s = False
+            | otherwise = k $! S.insert x s

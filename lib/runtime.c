@@ -1,6 +1,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <stdbool.h>
 
 // clang -O0 -o runtime.ll -emit-llvm -S runtime.c
 
@@ -8,15 +9,6 @@ void printInt(int n) { printf("%d\n", n); }
 void printString(char* s) { printf("%s\n", s); }
 int readInt() { int n; scanf("%d\n", &n); return n;}
 void error() { printf("runtimeError\n"); exit(1); }
-// char* readString() {
-//     memset(__readBuffer, '\0', 200001);
-//     fgets(__readBuffer, 200000, stdin);
-
-//     char *result = malloc(strlen(__readBuffer));
-//     strcpy(result, __readBuffer);
-//     return result;
-// }
-
 char* readString() {
     char* line = NULL;
     size_t len = 0;
@@ -30,4 +22,8 @@ char* __concatStrings(char* s1, char *s2) {
     strcpy(result, s1);
     strcat(result, s2);
     return result;
+}
+
+bool *__compareStrings(char* s1, char *s2) {
+    return (bool) (strcmp(s1, s2) == 0);
 }
