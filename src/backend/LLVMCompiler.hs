@@ -168,8 +168,6 @@ fillTopDefInformation (ClassDef ident classPoles) = do
         classFields = classFieldsToStore
     }
 
-    liftIO $ putStrLn "classsss\n"
-
     modify (\store -> store {
         classes = Map.insert ident classDef (classes store)
     })
@@ -572,8 +570,12 @@ compileDecl type' (NoInit ident) = do
     variableRegister <- getNextRegisterCounter
     env <- ask
     store <- get
+
+    let newType = case type' of
+                        c@(ClassType _) -> LLVMTypePointer (LLVMTypePointer (LLVMType type'))
+                        _ -> LLVMTypePointer (LLVMType type')
     let allocaVar = (LLVMVariable {
-        type' = LLVMTypePointer (LLVMType type'),
+        type' = newType,
         address = LLVMAddressRegister variableRegister,
         blockLabel = currentLabel store,
         ident = Just ident
@@ -586,8 +588,11 @@ compileDecl type' (Init ident expr) = do
     variableRegister <- getNextRegisterCounter
     env <- ask
     store <- get
+    let newType = case type' of
+                        c@(ClassType _) -> LLVMTypePointer (LLVMTypePointer (LLVMType type'))
+                        _ -> LLVMTypePointer (LLVMType type')
     let allocaVar = (LLVMVariable {
-        type' = LLVMTypePointer (LLVMType type'),
+        type' = newType,
         address = LLVMAddressRegister variableRegister,
         blockLabel = currentLabel store,
         ident = Just ident
@@ -996,6 +1001,8 @@ printLLVMInstruction (Operation l op r result) = case op of
         (NE) -> printf ("%s = icmp ne %s %s, %s") (printLLVMVarAddress result) (printLLVMVarType l) (printLLVMVarAddress l) (printLLVMVarAddress r)
         (EQU) -> printf ("%s = icmp eq %s %s, %s") (printLLVMVarAddress result) (printLLVMVarType l) (printLLVMVarAddress l) (printLLVMVarAddress r)
 printLLVMInstruction (Phi v vars) = printf ("%s = phi %s %s") (printLLVMVarAddress v) (printLLVMVarType v) (printPhiVars vars)
+printLLVMInstruction (Malloc res size) = printf ("%%r%s = call i8* @malloc(i32 %s)") (show res) (show size)
+printLLVMInstruction (BitcastMalloc res mallocAddress (ClassType (Ident i))) = printf ("%%r%s = bitcast i8* %%r%s to %%%s*") (show res) (show mallocAddress) (i)
 
 printPhiVars :: [LLVMVariable] -> String
 printPhiVars vars = intercalate (", ") (map (\var -> (printf ("[ %s, %%%s ]") (printLLVMVarAddress var) (printLLVMVarLabel var))) vars)

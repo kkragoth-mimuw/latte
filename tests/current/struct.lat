@@ -5,6 +5,6 @@ class list {
 
 int main() {
     list a;
-    list b;
+    list b = new list;
     return 0;
 }
