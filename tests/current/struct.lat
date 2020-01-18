@@ -6,12 +6,19 @@ class list {
 int main() {
     list a;
     list b = new list;
+     
+    //if (a.elem == 0) {
+    //    printString("stack");
+    //}
 
-    if (a == (list)null) {
-        printString("a is null");
+    if (b.elem == 0) {
+        printString("b equal zero");
     }
-    if (b == (list)null) {
-        printString("b is null");
+
+    b.elem = 2;
+
+    if (b.elem == 2) {
+        printString("now b is equal 2");
     }
 
     return 0;
