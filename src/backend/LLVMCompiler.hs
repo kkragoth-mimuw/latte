@@ -12,7 +12,7 @@ import           Control.Monad.Writer
 
 import qualified Data.Map as Map
 import Data.Maybe (fromJust)
-import Data.List (intercalate)
+import Data.List (intercalate, findIndex)
 import Text.Printf
 
 import AbsLatte 
@@ -113,7 +113,7 @@ data LLVMInstruction = Alloca LLVMVariable
     | Phi LLVMVariable [LLVMVariable]
     | Malloc Integer Integer
     | BitcastMalloc Integer Integer Type
-    | GEPClass LLVMVariable Index
+    | GEPClass LLVMVariable Type Integer
     | BranchConditional LLVMVariable Integer Integer deriving (Show)
 
 data LLVMAddress = LLVMAddressVoid
@@ -138,7 +138,7 @@ data LLVMClass = LLVMClass {
 
 data ClassField = ClassField {
     classFieldName :: Ident,
-    classFieldType :: Type
+    classFieldType :: LLVMType
 } deriving (Show)
 
 instance Compilable Program where
@@ -159,10 +159,16 @@ fillTopDefInformation (ClassDef ident classPoles) = do
                 _ -> False
             ) classPoles
 
-    let classFieldsToStore = map (\(ClassFieldDef type' ident') -> ClassField {
-        classFieldName = ident',
-        classFieldType = type'
-    }) onlyClassFields
+    let classFieldsToStore = map (\(ClassFieldDef type' ident') -> case type' of
+                                                                        c@(ClassType _) -> ClassField {
+                                                                                                classFieldName = ident',
+                                                                                                classFieldType = LLVMTypePointer (LLVMType c)
+                                                                                            }
+                                                                        _ -> ClassField {
+                                                                                    classFieldName = ident',
+                                                                                    classFieldType = LLVMType type'
+                                                                                }
+                                ) onlyClassFields
 
     let classDef = LLVMClass {
         className = ident,
@@ -644,7 +650,7 @@ compileExpr (ELValue (LValue ident)) = do
     })
     emit (Load registerVar var)
     return registerVar
-compileExpr (ELValue(LValueClassField lvalue ident)) = error "TODO"
+compileExpr (ELValue l@(LValueClassField lvalue ident)) = getLValue l
 compileExpr (ELValue(LValueArrayElem lvalue expr)) = error "TODO"
 compileExpr (ENew type') = do
     store <- get
@@ -658,13 +664,22 @@ compileExpr (ENew type') = do
     bitcastResult <- getNextRegisterCounter
     emit $ BitcastMalloc bitcastResult mallocResult type'
 
+    -- TODO INIT WITH DEFAULT VALUES
+
     return LLVMVariable {
         type' = LLVMTypePointer (LLVMType type'),
         address = LLVMAddressRegister bitcastResult,
         blockLabel = (currentLabel store),
         ident = Nothing
     }
-
+compileExpr (ENullCast type') = do
+    blockLabel <- gets currentLabel
+    return LLVMVariable {
+        type' = LLVMType type',
+        address = LLVMAddressNull,
+        blockLabel = blockLabel,
+        ident = Nothing
+    }
 compileExpr (ELitInt i) = do
     blockLabel <- gets currentLabel
     return LLVMVariable {
@@ -913,15 +928,23 @@ getLValue (LValue ident) = do
     return $ fromJust $ Map.lookup ident varsMap
 getLValue (LValueClassField lvalue ident) = do
     lvalueVar <- getLValue lvalue
-    classT = type' lvalueVar
-
+    let (LLVMTypePointer (LLVMType cType@(ClassType cIdent))) = type' lvalueVar
     classesM <- gets classes
+    let classFs = classFields $ fromJust $ Map.lookup cIdent classesM
+    let index = fromJust $ findIndex (\cF -> classFieldName cF == ident) classFs
+    let identType = classFieldType $ classFs!!index
 
-    classF = fromJust $ Map.lookup classT 
+    blockLabel <- gets currentLabel
 
+    newRegister <- getNextRegisterCounter
     let result = LLVMVariable {
-
+        type' = identType,
+        address = LLVMAddressRegister newRegister,
+        blockLabel = blockLabel,
+        ident = Nothing
     }
+    emit $ GEPClass result cType (toInteger index)
+    return result
 getLValue _ = error "todo"
 
 
@@ -962,7 +985,7 @@ dereferencePointer (LLVMTypePointer t) = t
 dereferencePointer _ = error "not a pointer!"
 
 printLLVMClass :: LLVMClass -> String
-printLLVMClass c = printf ("%%%s = type {\n%s\n}") (showIdent $ className c) (intercalate (",\n") (map showTypeInLLVM (map (\cF -> classFieldType cF) (classFields c))))
+printLLVMClass c = printf ("%%%s = type {\n%s\n}") (showIdent $ className c) (intercalate (",\n") (map printLLVMType (map (\cF -> classFieldType cF) (classFields c))))
 
 -- I dont want to do this in typeclass SHOW cause I need additional info for debuging for optimizations
 printLLVMType :: LLVMType -> String

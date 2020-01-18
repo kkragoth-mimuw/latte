@@ -10,5 +10,9 @@ struct a {
 
 int main() {
     struct a *f = NULL;
+    if (f == NULL) {
+        printf("hello");
+    }
+    
     return 0;
 }
