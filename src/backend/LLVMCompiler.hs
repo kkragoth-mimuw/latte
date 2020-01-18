@@ -36,7 +36,7 @@ runLLVMCompiler program = do
             let predefinedFunctions = showPredefinedFunctions
             let stringsDecl =  showStringsDeclarations (stringsMap store)
             let classDecl =  showClassesDeclarations (classes store)
-            return $ Right (predefinedFunctions ++ "\n" ++stringsDecl ++ res)
+            return $ Right (predefinedFunctions ++ "\n" ++stringsDecl ++ "\n" ++ classDecl ++ res)
 
 class Compilable f  where
     compile :: f -> GenM String
@@ -111,9 +111,12 @@ data LLVMInstruction = Alloca LLVMVariable
     | Call LLVMVariable Ident [LLVMVariable]
     | CallVoid Ident [LLVMVariable]
     | Phi LLVMVariable [LLVMVariable]
+    | Malloc Integer Integer
+    | BitcastMalloc Integer Integer Type
     | BranchConditional LLVMVariable Integer Integer deriving (Show)
 
 data LLVMAddress = LLVMAddressVoid
+    | LLVMAddressNull
     | LLVMAddressImmediate Integer
     | LLVMAddressNamedRegister String
     | LLVMAddressRegister Integer deriving (Show)
@@ -164,6 +167,8 @@ fillTopDefInformation (ClassDef ident classPoles) = do
         className = ident,
         classFields = classFieldsToStore
     }
+
+    liftIO $ putStrLn "classsss\n"
 
     modify (\store -> store {
         classes = Map.insert ident classDef (classes store)
@@ -609,6 +614,15 @@ defaultVariable Boolean = do
         ident = Nothing
     })
 defaultVariable Str = compileExpr (EString "")
+defaultVariable c@(ClassType ident) = do
+    store <- get
+    return $ (LLVMVariable {
+        type' = LLVMTypePointer (LLVMType c),
+        address = LLVMAddressNull,
+        blockLabel = currentLabel store,
+        ident = Nothing
+    })
+
 
 compileExpr :: Expr -> GenM LLVMVariable
 compileExpr (ELValue (LValue ident)) = do
@@ -626,6 +640,25 @@ compileExpr (ELValue (LValue ident)) = do
     return registerVar
 compileExpr (ELValue(LValueClassField lvalue ident)) = error "TODO"
 compileExpr (ELValue(LValueArrayElem lvalue expr)) = error "TODO"
+compileExpr (ENew type') = do
+    store <- get
+    blockLabel <- gets currentLabel
+
+    let size = 2
+
+    mallocResult <- getNextRegisterCounter
+    emit $ Malloc mallocResult size
+
+    bitcastResult <- getNextRegisterCounter
+    emit $ BitcastMalloc bitcastResult mallocResult type'
+
+    return LLVMVariable {
+        type' = LLVMTypePointer (LLVMType type'),
+        address = LLVMAddressRegister bitcastResult,
+        blockLabel = (currentLabel store),
+        ident = Nothing
+    }
+
 compileExpr (ELitInt i) = do
     blockLabel <- gets currentLabel
     return LLVMVariable {
@@ -904,6 +937,7 @@ showTypeInLLVM Void = "void"
 showTypeInLLVM Int = "i32"
 showTypeInLLVM Str = "i8*"
 showTypeInLLVM Boolean = "i1"
+showTypeInLLVM (ClassType (Ident className)) = printf("%%%s") (className)
 showTypeInLLVM _ = ""
 
 dereferencePointer :: LLVMType -> LLVMType
@@ -911,7 +945,7 @@ dereferencePointer (LLVMTypePointer t) = t
 dereferencePointer _ = error "not a pointer!"
 
 printLLVMClass :: LLVMClass -> String
-printLLVMClass c = printf ("%%%s = type {\n %s \n}") (showIdent $ className c) (intercalate (",\n") (map showTypeInLLVM (map (\cF -> classFieldType cF) (classFields c))))
+printLLVMClass c = printf ("%%%s = type {\n%s\n}") (showIdent $ className c) (intercalate (",\n") (map showTypeInLLVM (map (\cF -> classFieldType cF) (classFields c))))
 
 -- I dont want to do this in typeclass SHOW cause I need additional info for debuging for optimizations
 printLLVMType :: LLVMType -> String
@@ -927,6 +961,7 @@ printLLVMVarLabel var = "L" ++ (show $ blockLabel var)
 printLLVMAddress :: LLVMAddress -> String
 printLLVMAddress LLVMAddressVoid = ""
 printLLVMAddress (LLVMAddressImmediate integer) = show integer
+printLLVMAddress LLVMAddressNull = "null"
 printLLVMAddress (LLVMAddressRegister label) = printf("%%r%s") (show label)
 printLLVMAddress (LLVMAddressNamedRegister strLabel) = printf("%%%s") (strLabel)
 
@@ -977,6 +1012,7 @@ predefinedFunctions = ([
 
 showPredefinedFunctions :: String
 showPredefinedFunctions = (intercalate ("\n") ([
+        "declare i8* @malloc(i32) nounwind",
         "declare void @printInt(i32)",
         "declare void @printString(i8*)",
         "declare void @error()",

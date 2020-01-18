@@ -1,0 +1,10 @@
+class list {
+  int elem;
+  list next;
+}
+
+int main() {
+    list a;
+    list b;
+    return 0;
+}
