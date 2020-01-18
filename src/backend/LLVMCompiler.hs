@@ -55,6 +55,7 @@ data Store = Store {
     currentFunction :: Ident,
     currentLabel :: Integer,
     functions :: Map.Map Ident Type,
+    classes :: Map.Map Ident LLVMClass,
     labelCounter :: Integer,
     registerCounter :: Integer,
     functionBlocks :: Map.Map Ident BlockMap,
@@ -67,6 +68,7 @@ initStore = Store {
     currentFunction = Ident "",
     currentLabel = 0,
     functions = Map.fromList (predefinedFunctions),
+    classes = Map.empty,
     labelCounter = 0,
     registerCounter = -1,
     functionBlocks = Map.empty,
@@ -120,19 +122,49 @@ data LLVMVariable = LLVMVariable {
     ident :: Maybe Ident
 } deriving (Show)
 
+data LLVMClass = LLVMClass {
+    className :: Ident,
+    classFields :: [ClassField]
+} deriving (Show)
+
+data ClassField = ClassField {
+    classFieldName :: Ident,
+    classFieldType :: Type
+} deriving (Show)
 
 instance Compilable Program where
     compile (Program topdefs) = do
-        forM_ topdefs fillFunctionsInformation
+        forM_ topdefs fillTopDefInformation
         result <- compileFnDefs topdefs
         return result
 
 
-fillFunctionsInformation :: TopDef -> GenM ()
-fillFunctionsInformation (FnDef type' ident args _) = do
+fillTopDefInformation :: TopDef -> GenM ()
+fillTopDefInformation (FnDef type' ident args _) = do
     modify (\store -> store {
         functions = Map.insert ident (Fun type' (map (\(Arg t _) -> t) args)) (functions store)
     })
+fillTopDefInformation (ClassDef ident classPoles) = do
+    let onlyClassFields = filter (\classPole -> case classPole of 
+                (ClassFieldDef _ _) -> True
+                _ -> False
+            ) classPoles
+
+    let classFieldsToStore = map (\(ClassFieldDef type' ident') -> ClassField {
+        classFieldName = ident',
+        classFieldType = type'
+    }) onlyClassFields
+
+    let classDef = LLVMClass {
+        className = ident,
+        classFields = classFieldsToStore
+    }
+
+    modify (\store -> store {
+        classes = Map.insert ident classDef (classes store)
+    })
+
+    
 
 emit :: LLVMInstruction -> GenM ()
 emit instruction = do

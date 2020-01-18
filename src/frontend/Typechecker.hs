@@ -14,7 +14,8 @@ import PrintLatte
 type TCM a = (ExceptT TypecheckErrorWithLogging (Reader TCEnv)) a
 
 data TCEnv = TCEnv {
-    typesMap                  :: Map.Map Ident (Type, Integer),
+    typesMap :: Map.Map Ident (Type, Integer),
+    classes :: Map.Map Ident (),
     level :: Integer,
     currentFunctionReturnType :: Maybe Type
 }
@@ -27,6 +28,7 @@ initTCEnv = TCEnv {
         (Ident "readInt", ((Fun Int []), -1)),
         (Ident "readString", ((Fun Str []), -1))    
     ],
+    classes = Map.empty,
     level = 0,
     currentFunctionReturnType = Nothing
 }
@@ -81,6 +83,7 @@ instance Show TypecheckError where
     show TCInvalidNumberOfArguments                      = "Passed invalid number of arguments to function"
     show (TCDebug str)                                   = printf "%s" (show str)
     show TCReturn                                        = "return error"
+    show (TCUndeclaredVariable Ident)                    = printf "Use of undeclared variable %s" (show ident)
     show _ = ""
 
 data TypecheckErrorWithLogging = TypecheckErrorWithLogging TypecheckError Integer [String] deriving (Show)
