@@ -113,6 +113,7 @@ data LLVMInstruction = Alloca LLVMVariable
     | Phi LLVMVariable [LLVMVariable]
     | Malloc Integer Integer
     | BitcastMalloc Integer Integer Type
+    | GEPClass LLVMVariable Index
     | BranchConditional LLVMVariable Integer Integer deriving (Show)
 
 data LLVMAddress = LLVMAddressVoid
@@ -910,6 +911,17 @@ getLValue :: LValue -> GenM LLVMVariable
 getLValue (LValue ident) = do
     varsMap <- asks vars
     return $ fromJust $ Map.lookup ident varsMap
+getLValue (LValueClassField lvalue ident) = do
+    lvalueVar <- getLValue lvalue
+    classT = type' lvalueVar
+
+    classesM <- gets classes
+
+    classF = fromJust $ Map.lookup classT 
+
+    let result = LLVMVariable {
+
+    }
 getLValue _ = error "todo"
 
 
