@@ -40,32 +40,36 @@ L0:
 	store i32 %x, i32* %r1
 	%r2 = call i8* @malloc(i32 12)
 	%r3 = bitcast i8* %r2 to %Node*
-	%r4 = alloca %Node*
-	store %Node* %r3, %Node** %r4
-	%r5 = load %Node*, %Node** %r4
-	%r6 = load i32, i32* %r1
-	call void @Node__setElem(%Node* %r5,i32 %r6)
-	%r7 = load %IntQueue*, %IntQueue** %r0
-	%r8 = call i1 @IntQueue__isEmpty(%IntQueue* %r7)
-	br i1 %r8, label %L1, label %L2
-L1:
+	%r4 = getelementptr %Node, %Node* %r3, i32 0, i32 0
+	store i32 0, i32* %r4
+	%r5 = getelementptr %Node, %Node* %r3, i32 0, i32 1
+	store %Node* null, %Node** %r5
+	%r6 = alloca %Node*
+	store %Node* %r3, %Node** %r6
+	%r7 = load %Node*, %Node** %r6
+	%r8 = load i32, i32* %r1
+	call void @Node__setElem(%Node* %r7,i32 %r8)
 	%r9 = load %IntQueue*, %IntQueue** %r0
-	%r10 = getelementptr %IntQueue, %IntQueue* %r9, i32 0, i32 0
-	%r11 = load %Node*, %Node** %r4
-	store %Node* %r11, %Node** %r10
+	%r10 = call i1 @IntQueue__isEmpty(%IntQueue* %r9)
+	br i1 %r10, label %L1, label %L2
+L1:
+	%r11 = load %IntQueue*, %IntQueue** %r0
+	%r12 = getelementptr %IntQueue, %IntQueue* %r11, i32 0, i32 0
+	%r13 = load %Node*, %Node** %r6
+	store %Node* %r13, %Node** %r12
 	br label %L3
 L2:
-	%r12 = load %IntQueue*, %IntQueue** %r0
-	%r13 = getelementptr %IntQueue, %IntQueue* %r12, i32 0, i32 1
-	%r14 = load %Node*, %Node** %r13
-	%r15 = load %Node*, %Node** %r4
-	call void @Node__setNext(%Node* %r14,%Node* %r15)
+	%r14 = load %IntQueue*, %IntQueue** %r0
+	%r15 = getelementptr %IntQueue, %IntQueue* %r14, i32 0, i32 1
+	%r16 = load %Node*, %Node** %r15
+	%r17 = load %Node*, %Node** %r6
+	call void @Node__setNext(%Node* %r16,%Node* %r17)
 	br label %L3
 L3:
-	%r16 = load %IntQueue*, %IntQueue** %r0
-	%r17 = getelementptr %IntQueue, %IntQueue* %r16, i32 0, i32 1
-	%r18 = load %Node*, %Node** %r4
-	store %Node* %r18, %Node** %r17
+	%r18 = load %IntQueue*, %IntQueue** %r0
+	%r19 = getelementptr %IntQueue, %IntQueue* %r18, i32 0, i32 1
+	%r20 = load %Node*, %Node** %r6
+	store %Node* %r20, %Node** %r19
 	ret void
 }
 
@@ -186,23 +190,27 @@ define i32 @main() {
 L0:
 	%r0 = call i8* @malloc(i32 16)
 	%r1 = bitcast i8* %r0 to %IntQueue*
-	%r2 = alloca %IntQueue*
-	store %IntQueue* %r1, %IntQueue** %r2
-	%r3 = load %IntQueue*, %IntQueue** %r2
-	%r4 = call i32 @f(i32 3)
-	call void @IntQueue__insert(%IntQueue* %r3,i32 %r4)
-	%r5 = load %IntQueue*, %IntQueue** %r2
-	call void @IntQueue__insert(%IntQueue* %r5,i32 5)
-	%r6 = load %IntQueue*, %IntQueue** %r2
-	call void @IntQueue__insert(%IntQueue* %r6,i32 7)
-	%r7 = load %IntQueue*, %IntQueue** %r2
-	%r8 = call i32 @IntQueue__first(%IntQueue* %r7)
-	call void @printInt(i32 %r8)
-	%r9 = load %IntQueue*, %IntQueue** %r2
-	call void @IntQueue__rmFirst(%IntQueue* %r9)
-	%r10 = load %IntQueue*, %IntQueue** %r2
-	%r11 = call i32 @IntQueue__size(%IntQueue* %r10)
-	call void @printInt(i32 %r11)
+	%r2 = getelementptr %IntQueue, %IntQueue* %r1, i32 0, i32 0
+	store %Node* null, %Node** %r2
+	%r3 = getelementptr %IntQueue, %IntQueue* %r1, i32 0, i32 1
+	store %Node* null, %Node** %r3
+	%r4 = alloca %IntQueue*
+	store %IntQueue* %r1, %IntQueue** %r4
+	%r5 = load %IntQueue*, %IntQueue** %r4
+	%r6 = call i32 @f(i32 3)
+	call void @IntQueue__insert(%IntQueue* %r5,i32 %r6)
+	%r7 = load %IntQueue*, %IntQueue** %r4
+	call void @IntQueue__insert(%IntQueue* %r7,i32 5)
+	%r8 = load %IntQueue*, %IntQueue** %r4
+	call void @IntQueue__insert(%IntQueue* %r8,i32 7)
+	%r9 = load %IntQueue*, %IntQueue** %r4
+	%r10 = call i32 @IntQueue__first(%IntQueue* %r9)
+	call void @printInt(i32 %r10)
+	%r11 = load %IntQueue*, %IntQueue** %r4
+	call void @IntQueue__rmFirst(%IntQueue* %r11)
+	%r12 = load %IntQueue*, %IntQueue** %r4
+	%r13 = call i32 @IntQueue__size(%IntQueue* %r12)
+	call void @printInt(i32 %r13)
 	ret i32 0
 }
 

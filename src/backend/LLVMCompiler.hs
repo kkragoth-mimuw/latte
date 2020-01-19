@@ -5,6 +5,7 @@
 
 -- TODO:
 -- ENEW -> default variables
+-- CAST ON STORE
 
 module LLVMCompiler where
 
@@ -222,42 +223,6 @@ fillMethodInformation c m@(ClassMethodDef _ _ _ _) = do
         functions = Map.insert ident (Fun type' (map (\(Arg t _) -> t) args)) (functions store)
     })
 fillMethodInformation _ _ = return ()
-
--- fillTopDefInformation (ClassDef ident classPoles) = return ()
-    -- let onlyLLVMClassFields = filter (\classPole -> case classPole of 
-    --             (LLVMClassFieldDef _ _) -> True
-    --             _ -> False
-    --         ) classPoles
-
-    -- let onlyClassMethods = filter (\classPole -> case classPole of 
-    --             (LLVMClassFieldDef _ _) -> False
-    --             (ClassMethodDef _ _ _ _) -> True
-    --         ) classPoles
-
-    -- let llvmClassFieldsToStore = map (\(LLVMClassFieldDef type' ident') -> case type' of
-    --                                                                     c@(ClassType _) -> LLVMClassField {
-    --                                                                                             classFieldName = ident',
-    --                                                                                             classFieldType = LLVMTypePointer (LLVMType c)
-    --                                                                                         }
-    --                                                                     _ -> LLVMClassField {
-    --                                                                                 classFieldName = ident',
-    --                                                                                 classFieldType = LLVMType type'
-    --                                                                             }
-    --                             ) onlyLLVMClassFields
-
-    -- let classDef = LLVMClass {
-    --     llvmClassName = ident,
-    --     llvmClassFields = llvmClassFieldsToStore,
-    --     llvmClassMethods = onlyClassMethods
-    -- }
-
-    -- modify (\store -> store {
-    --     classes = Map.insert ident classDef (classes store)
-    -- })
-
-
-
-    
 
 emit :: LLVMInstruction -> GenM ()
 emit instruction = do
@@ -758,6 +723,25 @@ defaultVariable c@(ClassType ident) = do
         ident = Nothing
     })
 
+emitDefaultVariableForClassField :: Ident -> LLVMVariable -> (Integer, LLVMClassField) -> GenM()
+emitDefaultVariableForClassField cIdent newLLVMVariable (index, cField) = do
+    let type' = case classFieldType cField of
+                    (LLVMTypePointer (LLVMType t)) -> t
+                    (LLVMType t) -> t
+
+    blockLabel <- gets currentLabel
+    rhs <- defaultVariable type'
+
+    newRegister <- getNextRegisterCounter
+    let result = (LLVMVariable {
+        type' = LLVMTypePointer (classFieldType cField),
+        address = LLVMAddressRegister newRegister,
+        blockLabel = blockLabel,
+        ident = Nothing
+    })
+    emit $ GEPClass result (ClassType cIdent) newLLVMVariable (toInteger index)
+    emit $ MemoryStore rhs result
+
 
 compileExpr :: Expr -> GenM LLVMVariable
 -- compileExpr (ELValue (LValue ident)) = do
@@ -841,14 +825,18 @@ compileExpr (ENew type'@(ClassType cIdent)) = do
     bitcastResult <- getNextRegisterCounter
     emit $ BitcastMalloc bitcastResult mallocResult type'
 
-    -- TODO: DEFAULT VARIABLES
-
-    return LLVMVariable {
+    let result = LLVMVariable {
         type' = LLVMTypePointer (LLVMType type'),
         address = LLVMAddressRegister bitcastResult,
         blockLabel = (currentLabel store),
         ident = Nothing
     }
+
+    -- TODO: DEFAULT VARIABLES
+    let cFields = llvmClassFields $ fromJust $ Map.lookup cIdent (classes store)
+    forM_ (zip [0..] cFields) (\(index, cField) -> emitDefaultVariableForClassField cIdent result (index, cField))
+
+    return result
 compileExpr (ENullCast type') = do
     blockLabel <- gets currentLabel
     return LLVMVariable {

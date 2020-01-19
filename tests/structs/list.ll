@@ -48,17 +48,21 @@ L0:
 	store %list* null, %list** %r2
 	%r3 = call i8* @malloc(i32 12)
 	%r4 = bitcast i8* %r3 to %list*
+	%r5 = getelementptr %list, %list* %r4, i32 0, i32 0
+	store i32 0, i32* %r5
+	%r6 = getelementptr %list, %list* %r4, i32 0, i32 1
+	store %list* null, %list** %r6
 	store %list* %r4, %list** %r2
-	%r5 = load %list*, %list** %r2
-	%r6 = getelementptr %list, %list* %r5, i32 0, i32 0
-	%r7 = load i32, i32* %r0
-	store i32 %r7, i32* %r6
-	%r8 = load %list*, %list** %r2
-	%r9 = getelementptr %list, %list* %r8, i32 0, i32 1
-	%r10 = load %list*, %list** %r1
-	store %list* %r10, %list** %r9
-	%r11 = load %list*, %list** %r2
-	ret %list* %r11
+	%r7 = load %list*, %list** %r2
+	%r8 = getelementptr %list, %list* %r7, i32 0, i32 0
+	%r9 = load i32, i32* %r0
+	store i32 %r9, i32* %r8
+	%r10 = load %list*, %list** %r2
+	%r11 = getelementptr %list, %list* %r10, i32 0, i32 1
+	%r12 = load %list*, %list** %r1
+	store %list* %r12, %list** %r11
+	%r13 = load %list*, %list** %r2
+	ret %list* %r13
 }
 
 define i32 @length(%list* %xs) {

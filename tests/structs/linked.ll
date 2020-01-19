@@ -75,20 +75,24 @@ L0:
 	store i32 %c, i32* %r1
 	%r2 = call i8* @malloc(i32 12)
 	%r3 = bitcast i8* %r2 to %Node*
-	%r4 = alloca %Node*
-	store %Node* %r3, %Node** %r4
-	%r5 = load %Node*, %Node** %r4
-	%r6 = load i32, i32* %r1
-	call void @Node__setElem(%Node* %r5,i32 %r6)
-	%r7 = load %Node*, %Node** %r4
-	%r8 = load %Stack*, %Stack** %r0
-	%r9 = getelementptr %Stack, %Stack* %r8, i32 0, i32 0
-	%r10 = load %Node*, %Node** %r9
-	call void @Node__setNext(%Node* %r7,%Node* %r10)
-	%r11 = load %Stack*, %Stack** %r0
-	%r12 = getelementptr %Stack, %Stack* %r11, i32 0, i32 0
-	%r13 = load %Node*, %Node** %r4
-	store %Node* %r13, %Node** %r12
+	%r4 = getelementptr %Node, %Node* %r3, i32 0, i32 0
+	store i32 0, i32* %r4
+	%r5 = getelementptr %Node, %Node* %r3, i32 0, i32 1
+	store %Node* null, %Node** %r5
+	%r6 = alloca %Node*
+	store %Node* %r3, %Node** %r6
+	%r7 = load %Node*, %Node** %r6
+	%r8 = load i32, i32* %r1
+	call void @Node__setElem(%Node* %r7,i32 %r8)
+	%r9 = load %Node*, %Node** %r6
+	%r10 = load %Stack*, %Stack** %r0
+	%r11 = getelementptr %Stack, %Stack* %r10, i32 0, i32 0
+	%r12 = load %Node*, %Node** %r11
+	call void @Node__setNext(%Node* %r9,%Node* %r12)
+	%r13 = load %Stack*, %Stack** %r0
+	%r14 = getelementptr %Stack, %Stack* %r13, i32 0, i32 0
+	%r15 = load %Node*, %Node** %r6
+	store %Node* %r15, %Node** %r14
 	ret void
 }
 
@@ -133,36 +137,38 @@ define i32 @main() {
 L0:
 	%r0 = call i8* @malloc(i32 8)
 	%r1 = bitcast i8* %r0 to %Stack*
-	%r2 = alloca %Stack*
-	store %Stack* %r1, %Stack** %r2
-	%r3 = alloca i32
-	store i32 0, i32* %r3
+	%r2 = getelementptr %Stack, %Stack* %r1, i32 0, i32 0
+	store %Node* null, %Node** %r2
+	%r3 = alloca %Stack*
+	store %Stack* %r1, %Stack** %r3
+	%r4 = alloca i32
+	store i32 0, i32* %r4
 	br label %L1
 L1:
-	%r4 = load i32, i32* %r3
-	%r5 = icmp slt i32 %r4, 10
-	br i1 %r5, label %L2, label %L3
+	%r5 = load i32, i32* %r4
+	%r6 = icmp slt i32 %r5, 10
+	br i1 %r6, label %L2, label %L3
 L2:
-	%r6 = load %Stack*, %Stack** %r2
-	%r7 = load i32, i32* %r3
-	call void @Stack__push(%Stack* %r6,i32 %r7)
-	%r8 = load i32, i32* %r3
-	%r9 = add i32 %r8, 1
-	store i32 %r9, i32* %r3
+	%r7 = load %Stack*, %Stack** %r3
+	%r8 = load i32, i32* %r4
+	call void @Stack__push(%Stack* %r7,i32 %r8)
+	%r9 = load i32, i32* %r4
+	%r10 = add i32 %r9, 1
+	store i32 %r10, i32* %r4
 	br label %L1
 L3:
 	br label %L4
 L4:
-	%r10 = load %Stack*, %Stack** %r2
-	%r11 = call i1 @Stack__isEmpty(%Stack* %r10)
-	%r12 = xor i1 1, %r11
-	br i1 %r12, label %L5, label %L6
+	%r11 = load %Stack*, %Stack** %r3
+	%r12 = call i1 @Stack__isEmpty(%Stack* %r11)
+	%r13 = xor i1 1, %r12
+	br i1 %r13, label %L5, label %L6
 L5:
-	%r13 = load %Stack*, %Stack** %r2
-	%r14 = call i32 @Stack__top(%Stack* %r13)
-	call void @printInt(i32 %r14)
-	%r15 = load %Stack*, %Stack** %r2
-	call void @Stack__pop(%Stack* %r15)
+	%r14 = load %Stack*, %Stack** %r3
+	%r15 = call i32 @Stack__top(%Stack* %r14)
+	call void @printInt(i32 %r15)
+	%r16 = load %Stack*, %Stack** %r3
+	call void @Stack__pop(%Stack* %r16)
 	br label %L4
 L6:
 	ret i32 0

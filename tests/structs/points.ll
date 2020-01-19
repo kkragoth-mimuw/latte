@@ -258,42 +258,62 @@ define i32 @main() {
 L0:
 	%r0 = call i8* @malloc(i32 12)
 	%r1 = bitcast i8* %r0 to %Point3*
-	%r2 = alloca %Point2*
-	store %Point3* %r1, %Point2** %r2
-	%r3 = call i8* @malloc(i32 12)
-	%r4 = bitcast i8* %r3 to %Point3*
-	%r5 = alloca %Point3*
-	store %Point3* %r4, %Point3** %r5
-	%r6 = call i8* @malloc(i32 16)
-	%r7 = bitcast i8* %r6 to %Point4*
-	%r8 = alloca %Point4*
-	store %Point4* %r7, %Point4** %r8
-	%r9 = load %Point3*, %Point3** %r5
-	call void @Point3__move(%Point3* %r9,i32 2,i32 4)
-	%r10 = load %Point3*, %Point3** %r5
-	call void @Point3__moveZ(%Point3* %r10,i32 7)
-	%r11 = load %Point3*, %Point3** %r5
-	store %Point3* %r11, %Point2** %r2
-	%r12 = load %Point2*, %Point2** %r2
-	call void @Point2__move(%Point2* %r12,i32 3,i32 5)
-	%r13 = load %Point4*, %Point4** %r8
-	call void @Point4__move(%Point4* %r13,i32 1,i32 3)
-	%r14 = load %Point4*, %Point4** %r8
-	call void @Point4__moveZ(%Point4* %r14,i32 6)
-	%r15 = load %Point4*, %Point4** %r8
-	call void @Point4__moveW(%Point4* %r15,i32 2)
-	%r16 = load %Point2*, %Point2** %r2
-	%r17 = call i32 @Point2__getX(%Point2* %r16)
-	call void @printInt(i32 %r17)
-	%r18 = load %Point2*, %Point2** %r2
-	%r19 = call i32 @Point2__getY(%Point2* %r18)
-	call void @printInt(i32 %r19)
-	%r20 = load %Point3*, %Point3** %r5
-	%r21 = call i32 @Point3__getZ(%Point3* %r20)
-	call void @printInt(i32 %r21)
-	%r22 = load %Point4*, %Point4** %r8
-	%r23 = call i32 @Point4__getW(%Point4* %r22)
-	call void @printInt(i32 %r23)
+	%r2 = getelementptr %Point3, %Point3* %r1, i32 0, i32 0
+	store i32 0, i32* %r2
+	%r3 = getelementptr %Point3, %Point3* %r1, i32 0, i32 1
+	store i32 0, i32* %r3
+	%r4 = getelementptr %Point3, %Point3* %r1, i32 0, i32 2
+	store i32 0, i32* %r4
+	%r5 = alloca %Point2*
+	store %Point3* %r1, %Point2** %r5
+	%r6 = call i8* @malloc(i32 12)
+	%r7 = bitcast i8* %r6 to %Point3*
+	%r8 = getelementptr %Point3, %Point3* %r7, i32 0, i32 0
+	store i32 0, i32* %r8
+	%r9 = getelementptr %Point3, %Point3* %r7, i32 0, i32 1
+	store i32 0, i32* %r9
+	%r10 = getelementptr %Point3, %Point3* %r7, i32 0, i32 2
+	store i32 0, i32* %r10
+	%r11 = alloca %Point3*
+	store %Point3* %r7, %Point3** %r11
+	%r12 = call i8* @malloc(i32 16)
+	%r13 = bitcast i8* %r12 to %Point4*
+	%r14 = getelementptr %Point4, %Point4* %r13, i32 0, i32 0
+	store i32 0, i32* %r14
+	%r15 = getelementptr %Point4, %Point4* %r13, i32 0, i32 1
+	store i32 0, i32* %r15
+	%r16 = getelementptr %Point4, %Point4* %r13, i32 0, i32 2
+	store i32 0, i32* %r16
+	%r17 = getelementptr %Point4, %Point4* %r13, i32 0, i32 3
+	store i32 0, i32* %r17
+	%r18 = alloca %Point4*
+	store %Point4* %r13, %Point4** %r18
+	%r19 = load %Point3*, %Point3** %r11
+	call void @Point3__move(%Point3* %r19,i32 2,i32 4)
+	%r20 = load %Point3*, %Point3** %r11
+	call void @Point3__moveZ(%Point3* %r20,i32 7)
+	%r21 = load %Point3*, %Point3** %r11
+	store %Point3* %r21, %Point2** %r5
+	%r22 = load %Point2*, %Point2** %r5
+	call void @Point2__move(%Point2* %r22,i32 3,i32 5)
+	%r23 = load %Point4*, %Point4** %r18
+	call void @Point4__move(%Point4* %r23,i32 1,i32 3)
+	%r24 = load %Point4*, %Point4** %r18
+	call void @Point4__moveZ(%Point4* %r24,i32 6)
+	%r25 = load %Point4*, %Point4** %r18
+	call void @Point4__moveW(%Point4* %r25,i32 2)
+	%r26 = load %Point2*, %Point2** %r5
+	%r27 = call i32 @Point2__getX(%Point2* %r26)
+	call void @printInt(i32 %r27)
+	%r28 = load %Point2*, %Point2** %r5
+	%r29 = call i32 @Point2__getY(%Point2* %r28)
+	call void @printInt(i32 %r29)
+	%r30 = load %Point3*, %Point3** %r11
+	%r31 = call i32 @Point3__getZ(%Point3* %r30)
+	call void @printInt(i32 %r31)
+	%r32 = load %Point4*, %Point4** %r18
+	%r33 = call i32 @Point4__getW(%Point4* %r32)
+	call void @printInt(i32 %r33)
 	ret i32 0
 }
 
