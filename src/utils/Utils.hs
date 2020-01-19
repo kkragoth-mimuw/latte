@@ -29,7 +29,7 @@ classMapFromTopDefs :: [TopDef] -> LLVMClassDefMap -> LLVMClassMap -> LLVMClassV
 classMapFromTopDefs [] _  m _ = m
 classMapFromTopDefs ((ClassDef ident classPoles):xs) cM m cV= case (Map.lookup ident) cV of
                                                                         Just _ -> classMapFromTopDefs xs cM m cV
-                                                                        Nothing -> let newM = Map.insert ident (llvmClassFromPoles classPoles) m in
+                                                                        Nothing -> let newM = Map.insert ident (llvmClassFromPoles ident classPoles) m in
                                                                                         let newCV = Map.insert ident True cV in
                                                                                             classMapFromTopDefs xs cM newM newCV 
 classMapFromTopDefs ((ClassDefExt ident identBase classPoles):xs) cM m cV = error ""

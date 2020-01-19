@@ -147,16 +147,16 @@ data LLVMVariable = LLVMVariable {
     ident :: Maybe Ident
 } deriving (Show)
 
-data LLVMClass = LLVMClass {
-    className :: Ident,
-    classFields :: [ClassField],
-    classMethods :: [ClassPole]
-} deriving (Show)
+-- data LLVMClass = LLVMClass {
+--     className :: Ident,
+--     classFields :: [ClassField],
+--     classMethods :: [ClassPole]
+-- } deriving (Show)
 
-data ClassField = ClassField {
-    classFieldName :: Ident,
-    classFieldType :: LLVMType
-} deriving (Show)
+-- data ClassField = ClassField {
+--     classFieldName :: Ident,
+--     classFieldType :: LLVMType
+-- } deriving (Show)
 
 calculateClassSize :: LLVMClass -> Integer
 calculateClassSize c = sum fieldSizes where
