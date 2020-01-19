@@ -2,8 +2,8 @@ class point2 {
   int x;
   int y;
 
-  void printNothing() {
-      printString("nothing");
+  void printX() {
+      printInt(x);
   }
 }
 
@@ -16,6 +16,8 @@ class point3 extends point2 {
 }
 
 int main() {
-    point a = new point2;
+    point2 a = new point2;
+    a.x = 42;
+    a.printX();
     return 0;
 }
