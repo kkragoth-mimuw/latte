@@ -471,7 +471,7 @@ compileStmt (Ass lvalue expr) = do
     case (type' rhs, dereferencePointer $ type' lhs) of
         (a, b) | a == b -> do
             emit (MemoryStore rhs lhs)
-        (a, b) -> do
+        _ -> do
             newRegister <- getNextRegisterCounter
             blockLabel <- gets currentLabel
 
@@ -695,14 +695,14 @@ compileDecl type' (NoInit ident) = do
     emit (Alloca allocaVar)
     emit (MemoryStore rhs allocaVar)
     return $ env { vars = Map.insert ident allocaVar (vars env)}
-compileDecl type' (Init ident expr) = do
+compileDecl declType (Init ident expr) = do
     rhs <- compileExpr expr
     variableRegister <- getNextRegisterCounter
     env <- ask
     store <- get
-    let newType = case type' of
-                        c@(ClassType _) -> LLVMTypePointer (LLVMTypePointer (LLVMType type'))
-                        _ -> LLVMTypePointer (LLVMType type')
+    let newType = case declType of
+                        c@(ClassType _) -> LLVMTypePointer (LLVMTypePointer (LLVMType declType))
+                        _ -> LLVMTypePointer (LLVMType declType)
     let allocaVar = (LLVMVariable {
         type' = newType,
         address = LLVMAddressRegister variableRegister,
@@ -710,7 +710,23 @@ compileDecl type' (Init ident expr) = do
         ident = Just ident
     })
     emit (Alloca allocaVar)
-    emit (MemoryStore rhs allocaVar)
+
+    case (type' rhs, dereferencePointer $ type' allocaVar) of
+        (a, b) | a == b -> emit (MemoryStore rhs allocaVar)
+        _ -> do
+            newRegister <- getNextRegisterCounter
+            blockLabel <- gets currentLabel
+
+            let typeCastResult = (LLVMVariable {
+                type' = dereferencePointer $ type' allocaVar,
+                address = LLVMAddressRegister newRegister,
+                blockLabel = blockLabel,
+                ident = Nothing
+            })
+
+            emit $ Bitcast typeCastResult (type' rhs) rhs (dereferencePointer $ type' allocaVar)
+            emit $ MemoryStore (typeCastResult) allocaVar
+
     return $ env { vars = Map.insert ident allocaVar (vars env )}
 
 defaultVariable :: Type -> GenM LLVMVariable
