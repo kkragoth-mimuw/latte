@@ -1,4 +1,4 @@
-class point {
+class point2 {
   int x;
   int y;
 
@@ -7,7 +7,15 @@ class point {
   }
 }
 
+class point3 extends point2 {
+    int z;
+
+    void printA() {
+        printString("nothing");
+    }
+}
+
 int main() {
-    point a = new point;
+    point a = new point2;
     return 0;
 }

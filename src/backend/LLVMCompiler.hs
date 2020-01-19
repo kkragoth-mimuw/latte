@@ -147,22 +147,38 @@ data LLVMVariable = LLVMVariable {
     ident :: Maybe Ident
 } deriving (Show)
 
--- data LLVMClass = LLVMClass {
---     className :: Ident,
---     classFields :: [ClassField],
---     classMethods :: [ClassPole]
--- } deriving (Show)
+data LLVMClass = LLVMClass {
+    llvmClassName :: Ident,
+    llvmClassFields :: [LLVMClassField],
+    llvmClassMethods :: [ClassPole]
+} deriving (Show)
 
--- data ClassField = ClassField {
---     classFieldName :: Ident,
---     classFieldType :: LLVMType
--- } deriving (Show)
+data LLVMClassField = LLVMClassField {
+    classFieldName :: Ident,
+    classFieldType :: LLVMType
+} deriving (Show)
+
+classToLLVMClass :: Class -> LLVMClass
+classToLLVMClass c = LLVMClass {
+    llvmClassName = className c,
+    llvmClassMethods = classMethods c,
+    llvmClassFields = map (\(ClassFieldDef type' ident') -> case type' of
+                                                                        c@(ClassType _) -> LLVMClassField {
+                                                                                                classFieldName = ident',
+                                                                                                classFieldType = LLVMTypePointer (LLVMType c)
+                                                                                            }
+                                                                        _ -> LLVMClassField {
+                                                                                    classFieldName = ident',
+                                                                                    classFieldType = LLVMType type'
+                                                                                }
+        ) (classFields c)
+}
 
 calculateClassSize :: LLVMClass -> Integer
 calculateClassSize c = sum fieldSizes where
-                                fieldSizes = map calculateFieldSize (classFields c)
+                                fieldSizes = map calculateFieldSize (llvmClassFields c)
 
-calculateFieldSize :: ClassField -> Integer
+calculateFieldSize :: LLVMClassField -> Integer
 calculateFieldSize cf = calculateTypeSize (classFieldType cf)
 
 calculateTypeSize :: LLVMType -> Integer
@@ -174,6 +190,11 @@ calculateTypeSize (LLVMType Boolean) = 1 -- or 4??!?!?!? TODO
 instance Compilable Program where
     compile (Program topdefs) = do
         forM_ topdefs fillTopDefInformation
+        let classesMap = Map.map classToLLVMClass (createClassMapFromTopDefs topdefs) 
+        modify (\store -> store {
+            classes = classesMap
+        })
+        forM (Map.elems classesMap) fillClassMethodsInformation
         methodsDecl <- compileMethods
         result <- compileFnDefs topdefs
         return $ methodsDecl ++ "\n" ++ result
@@ -184,37 +205,54 @@ fillTopDefInformation (FnDef type' ident args _) = do
     modify (\store -> store {
         functions = Map.insert ident (Fun type' (map (\(Arg t _) -> t) args)) (functions store)
     })
-fillTopDefInformation (ClassDef ident classPoles) = do
-    let onlyClassFields = filter (\classPole -> case classPole of 
-                (ClassFieldDef _ _) -> True
-                _ -> False
-            ) classPoles
+fillTopDefInformation _ = return ()
 
-    let onlyClassMethods = filter (\classPole -> case classPole of 
-                (ClassFieldDef _ _) -> False
-                (ClassMethodDef _ _ _ _) -> True
-            ) classPoles
+fillClassMethodsInformation :: LLVMClass -> GenM ()
+fillClassMethodsInformation llvmClass = do
+    liftIO $ putStrLn $ "filling class method" ++ (show $ llvmClassName llvmClass)
+    forM_ (llvmClassMethods llvmClass) (fillMethodInformation llvmClass)
 
-    let classFieldsToStore = map (\(ClassFieldDef type' ident') -> case type' of
-                                                                        c@(ClassType _) -> ClassField {
-                                                                                                classFieldName = ident',
-                                                                                                classFieldType = LLVMTypePointer (LLVMType c)
-                                                                                            }
-                                                                        _ -> ClassField {
-                                                                                    classFieldName = ident',
-                                                                                    classFieldType = LLVMType type'
-                                                                                }
-                                ) onlyClassFields
-
-    let classDef = LLVMClass {
-        className = ident,
-        classFields = classFieldsToStore,
-        classMethods = onlyClassMethods
-    }
-
+fillMethodInformation :: LLVMClass -> ClassPole -> GenM ()
+fillMethodInformation c m@(ClassMethodDef _ _ _ _) = do
+    let (FnDef type' ident args _) = methodToFunctionConverter c m
     modify (\store -> store {
-        classes = Map.insert ident classDef (classes store)
+        functions = Map.insert ident (Fun type' (map (\(Arg t _) -> t) args)) (functions store)
     })
+fillMethodInformation _ _ = return ()
+
+-- fillTopDefInformation (ClassDef ident classPoles) = return ()
+    -- let onlyLLVMClassFields = filter (\classPole -> case classPole of 
+    --             (LLVMClassFieldDef _ _) -> True
+    --             _ -> False
+    --         ) classPoles
+
+    -- let onlyClassMethods = filter (\classPole -> case classPole of 
+    --             (LLVMClassFieldDef _ _) -> False
+    --             (ClassMethodDef _ _ _ _) -> True
+    --         ) classPoles
+
+    -- let llvmClassFieldsToStore = map (\(LLVMClassFieldDef type' ident') -> case type' of
+    --                                                                     c@(ClassType _) -> LLVMClassField {
+    --                                                                                             classFieldName = ident',
+    --                                                                                             classFieldType = LLVMTypePointer (LLVMType c)
+    --                                                                                         }
+    --                                                                     _ -> LLVMClassField {
+    --                                                                                 classFieldName = ident',
+    --                                                                                 classFieldType = LLVMType type'
+    --                                                                             }
+    --                             ) onlyLLVMClassFields
+
+    -- let classDef = LLVMClass {
+    --     llvmClassName = ident,
+    --     llvmClassFields = llvmClassFieldsToStore,
+    --     llvmClassMethods = onlyClassMethods
+    -- }
+
+    -- modify (\store -> store {
+    --     classes = Map.insert ident classDef (classes store)
+    -- })
+
+
 
     
 
@@ -258,7 +296,7 @@ compileMethods :: GenM String
 compileMethods = do
     classesM <- gets classes
     let classesList = Map.elems classesM
-    result <- mapM (\c -> compileMethodDefs c (classMethods c)) classesList
+    result <- mapM (\c -> compileMethodDefs c (llvmClassMethods c)) classesList
     return $ intercalate ("\n") result
 
 compileMethodDefs :: LLVMClass -> [ClassPole] -> GenM String
@@ -269,15 +307,18 @@ compileMethodDefs c (x:xs) = do
     return (result ++ result2)
 
 compileMethodDef :: LLVMClass -> ClassPole -> GenM String
-compileMethodDef c (ClassMethodDef returnType (Ident methodName) args block) = do
-    let cNameIdent@(Ident cName) = className c
-    let mangledMethodName = (Ident (cName ++ "__" ++ methodName))
-    let thisArg = Arg (ClassType cNameIdent) thisIdent
-    let mangledArgs = [thisArg] ++ args
+compileMethodDef c classMethod = do
+    let fnDef = methodToFunctionConverter c classMethod
 
-    local (\env -> env { currentClass = Just c} ) (compileFnDef (FnDef returnType mangledMethodName mangledArgs block))
+    local (\env -> env { currentClass = Just c} ) (compileFnDef (fnDef))
 
-compileMethodDef _ _ = return ""
+methodToFunctionConverter :: LLVMClass -> ClassPole -> TopDef
+methodToFunctionConverter c (ClassMethodDef returnType (Ident methodName) args block) =
+    let cNameIdent@(Ident cName) = llvmClassName c in
+    let mangledMethodName = (Ident (cName ++ "__" ++ methodName)) in
+    let thisArg = Arg (ClassType cNameIdent) thisIdent in
+    let mangledArgs = [thisArg] ++ args in
+    (FnDef returnType mangledMethodName mangledArgs block)
 
 compileFnDefs :: [TopDef] -> GenM String
 compileFnDefs [] = return ""
@@ -788,10 +829,54 @@ compileExpr(ELitFalse) = do
         blockLabel = blockLabel,
         ident = Nothing
     }
-compileExpr (EApp lvalue exprs) = do
+compileExpr (EApp (LValue name) exprs) = do
     args <- mapM compileExpr exprs
     store <- get
-    name <- getFuncNameFromLValue lvalue
+    let func = fromJust $ Map.lookup name (functions store)
+    case func of
+        (Fun Void _) -> do
+            emit (CallVoid name args)
+            return (LLVMVariable {
+                type' = LLVMType Void,
+                address = LLVMAddressVoid,
+                blockLabel = (currentLabel store),
+                ident = Nothing
+            })
+        (Fun type' _) -> do
+            newRegister <- getNextRegisterCounter
+            let resultType = case type' of
+                                    (ClassType _) -> LLVMTypePointer (LLVMType type')
+                                    _ -> LLVMType type'
+            let result = (LLVMVariable {
+                type' = resultType,
+                address = LLVMAddressRegister newRegister,
+                blockLabel = (currentLabel store),
+                ident = Nothing
+            })
+            emit (Call result name args)
+            return result
+compileExpr (EApp (LValueClassField lvalue (Ident ident)) exprs) = do
+    lvalueVarPointer <- getLValue lvalue
+
+    lvalueLoadedReg <- getNextRegisterCounter
+
+    blockLabel <- gets currentLabel
+    let lvalueVarLoaded = LLVMVariable {
+        type' = dereferencePointer $ type' lvalueVarPointer,
+        address = LLVMAddressRegister lvalueLoadedReg,
+        blockLabel = blockLabel,
+        ident = Nothing
+    }
+    emit $ (Load lvalueVarLoaded lvalueVarPointer)
+    argsWithoutThis <- mapM compileExpr exprs
+    let args = [lvalueVarLoaded] ++ argsWithoutThis
+    store <- get
+
+    liftIO $ putStrLn $ show $ type' lvalueVarLoaded
+    let (LLVMTypePointer (LLVMType (ClassType (Ident cIdent)))) = type' lvalueVarLoaded
+
+    let name = Ident (cIdent ++ "__" ++ ident)
+
     let func = fromJust $ Map.lookup name (functions store)
     case func of
         (Fun Void _) -> do
@@ -1030,7 +1115,7 @@ getLValue (LValueClassField lvalue ident) = do
     emit $ (Load lvalueVar lvalueVarPointer)
     
     classesM <- gets classes
-    let classFs = classFields $ fromJust $ Map.lookup cIdent classesM
+    let classFs = llvmClassFields $ fromJust $ Map.lookup cIdent classesM
     let index = fromJust $ findIndex (\cF -> classFieldName cF == ident) classFs
     let identType = classFieldType $ classFs!!index
 
@@ -1048,11 +1133,6 @@ getLValue (LValueClassField lvalue ident) = do
     emit $ GEPClass result cType lvalueVar (toInteger index)
     return result
 getLValue _ = error "todo"
-
-getFuncNameFromLValue :: LValue -> GenM Ident
-getFuncNameFromLValue  (LValue ident) = do
-    return ident
-getFuncNameFromLValue  _ = error "todo"
 
 showIdent :: Ident -> String
 showIdent (Ident s) = s
@@ -1079,7 +1159,7 @@ showTypeInLLVM Void = "void"
 showTypeInLLVM Int = "i32"
 showTypeInLLVM Str = "i8*"
 showTypeInLLVM Boolean = "i1"
-showTypeInLLVM (ClassType (Ident className)) = printf("%%%s") (className)
+showTypeInLLVM (ClassType (Ident llvmClassName)) = printf("%%%s") (llvmClassName)
 showTypeInLLVM _ = ""
 
 dereferencePointer :: LLVMType -> LLVMType
@@ -1088,8 +1168,8 @@ dereferencePointer _ = error "not a pointer!"
 
 printLLVMClass :: LLVMClass -> String
 printLLVMClass c = (printf ("%%%s = type {\n\t%s\n}\n")
-            (showIdent $ className c)
-            (intercalate (",\n\t") (map printLLVMType (map (\cF -> classFieldType cF) (classFields c))))
+            (showIdent $ llvmClassName c)
+            (intercalate (",\n\t") (map printLLVMType (map (\cF -> classFieldType cF) (llvmClassFields c))))
         )
 
 -- I dont want to do this in typeclass SHOW cause I need additional info for debuging for optimizations

@@ -1,0 +1,16 @@
+class point2 {
+    int x;
+    int y;
+
+    void printX() {
+        printInt(2);
+    }
+}
+
+int main() {
+    point2 p = new point2;
+    p.x = 2;
+    p.printX();
+
+    return 0;
+}
