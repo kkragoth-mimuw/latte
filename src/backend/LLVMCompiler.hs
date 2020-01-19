@@ -113,7 +113,7 @@ data LLVMInstruction = Alloca LLVMVariable
     | Phi LLVMVariable [LLVMVariable]
     | Malloc Integer Integer
     | BitcastMalloc Integer Integer Type
-    | GEPClass LLVMVariable Type Integer
+    | GEPClass LLVMVariable Type LLVMVariable Integer
     | BranchConditional LLVMVariable Integer Integer deriving (Show)
 
 data LLVMAddress = LLVMAddressVoid
@@ -258,8 +258,12 @@ compileFnDef (FnDef type' ident args (Block stmts)) = do
     -- TODO OPTIMIZE PHI BLOCK
 
     store <- get
+
+    let returnType = case type' of
+                        (ClassType ident) -> LLVMTypePointer (LLVMType type')
+                        _ -> (LLVMType type')
     
-    let functionDef = printf ("define %s @%s(%s) {\n") (showTypeInLLVM type') (showIdent ident) (showArgs args)
+    let functionDef = printf ("define %s @%s(%s) {\n") (printLLVMType returnType) (showIdent ident) (showArgs args)
     let blockCode = showBlocks (Map.elems $ fromJust $ Map.lookup (ident) (functionBlocks store))
 
     return (functionDef ++ blockCode ++ "}\n\n")
@@ -320,15 +324,20 @@ prepareArg :: Arg -> GenM Env
 prepareArg (Arg type' ident@(Ident argName)) = do
     store <- get
     env <- ask
+
+    let resultType = case type' of
+                        (ClassType _) -> LLVMTypePointer (LLVMType type')
+                        _ -> LLVMType type'
+                        
     newRegister <- getNextRegisterCounter
     let allocaVar = (LLVMVariable {
-        type' = LLVMTypePointer (LLVMType type'),
+        type' = LLVMTypePointer resultType,
         address = LLVMAddressRegister newRegister,
         blockLabel = (currentLabel store),
         ident = Just ident
     })
     let funcArg = (LLVMVariable {
-        type' = LLVMType type',
+        type' = resultType,
         address = LLVMAddressNamedRegister argName,
         blockLabel = (currentLabel store),
         ident = Nothing
@@ -650,12 +659,24 @@ compileExpr (ELValue (LValue ident)) = do
     })
     emit (Load registerVar var)
     return registerVar
-compileExpr (ELValue l@(LValueClassField lvalue ident)) = getLValue l
+compileExpr (ELValue l@(LValueClassField lvalue ident)) = do
+    lResult <- getLValue l
+    store <- get
+    newRegisterNumber <- getNextRegisterCounter
+    let registerVar = LLVMVariable {
+        type' = dereferencePointer $ type' lResult,
+        address = LLVMAddressRegister newRegisterNumber,
+        blockLabel = currentLabel store,
+        ident = Nothing
+    }
+    emit (Load registerVar lResult)
+    return registerVar
 compileExpr (ELValue(LValueArrayElem lvalue expr)) = error "TODO"
-compileExpr (ENew type') = do
+compileExpr (ENew type'@(ClassType cIdent)) = do
     store <- get
     blockLabel <- gets currentLabel
 
+    -- TODO SIZE
     let size = 2
 
     mallocResult <- getNextRegisterCounter
@@ -665,6 +686,10 @@ compileExpr (ENew type') = do
     emit $ BitcastMalloc bitcastResult mallocResult type'
 
     -- TODO INIT WITH DEFAULT VALUES
+    -- let classesM = classes store
+    -- let cFields = classFields $ fromJust $ Map.lookup cIdent classesM
+
+    -- forM_ cFields (\cField -> )
 
     return LLVMVariable {
         type' = LLVMTypePointer (LLVMType type'),
@@ -675,7 +700,7 @@ compileExpr (ENew type') = do
 compileExpr (ENullCast type') = do
     blockLabel <- gets currentLabel
     return LLVMVariable {
-        type' = LLVMType type',
+        type' = LLVMTypePointer (LLVMType type'),
         address = LLVMAddressNull,
         blockLabel = blockLabel,
         ident = Nothing
@@ -720,8 +745,11 @@ compileExpr (EApp lvalue exprs) = do
             })
         (Fun type' _) -> do
             newRegister <- getNextRegisterCounter
+            let resultType = case type' of
+                                    (ClassType _) -> LLVMTypePointer (LLVMType type')
+                                    _ -> LLVMType type'
             let result = (LLVMVariable {
-                type' = LLVMType type',
+                type' = resultType,
                 address = LLVMAddressRegister newRegister,
                 blockLabel = (currentLabel store),
                 ident = Nothing
@@ -927,8 +955,21 @@ getLValue (LValue ident) = do
     varsMap <- asks vars
     return $ fromJust $ Map.lookup ident varsMap
 getLValue (LValueClassField lvalue ident) = do
-    lvalueVar <- getLValue lvalue
-    let (LLVMTypePointer (LLVMType cType@(ClassType cIdent))) = type' lvalueVar
+    lvalueVarPointer <- getLValue lvalue
+    let (LLVMTypePointer (LLVMTypePointer (LLVMType cType@(ClassType cIdent)))) = type' lvalueVarPointer
+
+    blockLabel <- gets currentLabel
+
+    lvalueReg <- getNextRegisterCounter
+    let lvalueVar = LLVMVariable {
+        type' = (LLVMTypePointer (LLVMType cType)),
+        address = LLVMAddressRegister lvalueReg,
+        blockLabel = blockLabel,
+        ident = Nothing
+    }
+
+    emit $ (Load lvalueVar lvalueVarPointer)
+    
     classesM <- gets classes
     let classFs = classFields $ fromJust $ Map.lookup cIdent classesM
     let index = fromJust $ findIndex (\cF -> classFieldName cF == ident) classFs
@@ -938,15 +979,16 @@ getLValue (LValueClassField lvalue ident) = do
 
     newRegister <- getNextRegisterCounter
     let result = LLVMVariable {
-        type' = identType,
+        type' = LLVMTypePointer identType,
         address = LLVMAddressRegister newRegister,
         blockLabel = blockLabel,
         ident = Nothing
     }
-    emit $ GEPClass result cType (toInteger index)
+
+    liftIO $ putStrLn $ show cType
+    emit $ GEPClass result cType lvalueVar (toInteger index)
     return result
 getLValue _ = error "todo"
-
 
 getFuncNameFromLValue :: LValue -> GenM Ident
 getFuncNameFromLValue  (LValue ident) = do
@@ -960,6 +1002,7 @@ showArgs :: [Arg] -> String
 showArgs args = intercalate (", ") (map showArg args)
 
 showArg :: Arg -> String
+showArg (Arg c@(ClassType _) ident) =  printf ("%s %%%s") (printLLVMType (LLVMTypePointer (LLVMType c))) (showIdent ident)
 showArg (Arg type' ident) = printf ("%s %%%s") (showTypeInLLVM type') (showIdent ident)
 
 showBlocks :: [LLVMBlock] -> String
@@ -985,7 +1028,14 @@ dereferencePointer (LLVMTypePointer t) = t
 dereferencePointer _ = error "not a pointer!"
 
 printLLVMClass :: LLVMClass -> String
-printLLVMClass c = printf ("%%%s = type {\n%s\n}") (showIdent $ className c) (intercalate (",\n") (map printLLVMType (map (\cF -> classFieldType cF) (classFields c))))
+printLLVMClass c = (printf ("%%%s = type {\n%s\n}\n@%s_size = constant i32 ptrtoint (%%%s* getelementptr (%%%s, %%%s* null, i32 1) to i32)\n")
+            (showIdent $ className c)
+            (intercalate (",\n") (map printLLVMType (map (\cF -> classFieldType cF) (classFields c))))
+            (showIdent $ className c)
+            (showIdent $ className c)
+            (showIdent $ className c)
+            (showIdent $ className c)
+        )
 
 -- I dont want to do this in typeclass SHOW cause I need additional info for debuging for optimizations
 printLLVMType :: LLVMType -> String
@@ -1038,7 +1088,7 @@ printLLVMInstruction (Operation l op r result) = case op of
 printLLVMInstruction (Phi v vars) = printf ("%s = phi %s %s") (printLLVMVarAddress v) (printLLVMVarType v) (printPhiVars vars)
 printLLVMInstruction (Malloc res size) = printf ("%%r%s = call i8* @malloc(i32 %s)") (show res) (show size)
 printLLVMInstruction (BitcastMalloc res mallocAddress (ClassType (Ident i))) = printf ("%%r%s = bitcast i8* %%r%s to %%%s*") (show res) (show mallocAddress) (i)
-
+printLLVMInstruction (GEPClass rVar (ClassType (Ident cType)) lVar index) = printf("%s = getelementptr %%%s, %%%s* %s, i32 0, i32 %s") (printLLVMVarAddress rVar) (cType) (cType) (printLLVMVarAddress lVar) (show index)
 printPhiVars :: [LLVMVariable] -> String
 printPhiVars vars = intercalate (", ") (map (\var -> (printf ("[ %s, %%%s ]") (printLLVMVarAddress var) (printLLVMVarLabel var))) vars)
 
