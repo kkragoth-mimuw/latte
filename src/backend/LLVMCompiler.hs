@@ -91,9 +91,18 @@ data LLVMBlock = LLVMBlock {
 
 showStringsDeclarations :: Map.Map String Integer -> String
 showStringsDeclarations stringMap = intercalate ("\n") (
-        map (\(str, i) -> printf ("@s%s = private constant [%s x i8] c\"%s\\00\"") (show i) (show $ (length str) + 1) str)
+        map (\(str, i) -> printf ("@s%s = private constant [%s x i8] c\"%s\\00\"") (show i) (show $ (length str) + 1) (escapeString str))
         (Map.toList stringMap)
     ) ++ "\n\n"
+
+escapeString :: String -> String
+escapeString [] = ""
+escapeString ('\\':xs) = "\\5C" ++ escapeString xs
+escapeString ('\"':xs) = "\\22" ++ escapeString xs
+escapeString ('\n':xs) = "\\0A" ++ escapeString xs
+escapeString ('\t':xs) = "\\09" ++ escapeString xs
+escapeString (x:xs) = [x] ++ escapeString xs
+-- @.str = private unnamed_addr constant [9 x i8] c"\5Ca\5Cn\0A\09b\22\00", align 1
 
 showClassesDeclarations :: Map.Map Ident LLVMClass -> String
 showClassesDeclarations classMap = intercalate ("\n") (

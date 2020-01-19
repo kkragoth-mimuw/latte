@@ -6,8 +6,7 @@ declare i32 @readInt()
 declare i8* @readString()
 declare i8* @__concatStrings(i8*, i8*)
 
-@s1 = private constant [9 x i8] c"\a\n
-	b"\00"
+@s1 = private constant [9 x i8] c"\5Ca\5Cn\0A\09b\22\00"
 
 
 

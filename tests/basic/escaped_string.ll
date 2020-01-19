@@ -6,14 +6,7 @@ declare i32 @readInt()
 declare i8* @readString()
 declare i8* @__concatStrings(i8*, i8*)
 
-@s1 = private constant [157 x i8] c""
-pop
-powrot:
-getstatic java/lang/System/out Ljava/io/PrintStream;
-ldc "zle "
-invokevirtual java/io/PrintStream/print(Ljava/lang/String;)V
-goto powrot
-ldc "\00"
+@s1 = private constant [157 x i8] c"\22\0Apop\0Apowrot:\0Agetstatic java/lang/System/out Ljava/io/PrintStream;\0Aldc \22zle \22\0Ainvokevirtual java/io/PrintStream/print(Ljava/lang/String;)V\0Agoto powrot\0Aldc \22\00"
 
 
 

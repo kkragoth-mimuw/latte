@@ -5,23 +5,26 @@ target triple = "x86_64-apple-macosx10.15.0"
 
 %struct.a = type { i32 }
 
-@.str = private unnamed_addr constant [6 x i8] c"hello\00", align 1
+@.str = private unnamed_addr constant [9 x i8] c"\5Ca\5Cn\0A\09b\22\00", align 1
+@.str.1 = private unnamed_addr constant [6 x i8] c"hello\00", align 1
 
 ; Function Attrs: noinline nounwind optnone ssp uwtable
 define i32 @main() #0 {
   %1 = alloca i32, align 4
-  %2 = alloca %struct.a*, align 8
+  %2 = alloca i8*, align 8
+  %3 = alloca %struct.a*, align 8
   store i32 0, i32* %1, align 4
-  store %struct.a* null, %struct.a** %2, align 8
-  %3 = load %struct.a*, %struct.a** %2, align 8
-  %4 = icmp eq %struct.a* %3, null
-  br i1 %4, label %5, label %7
+  store i8* getelementptr inbounds ([9 x i8], [9 x i8]* @.str, i32 0, i32 0), i8** %2, align 8
+  store %struct.a* null, %struct.a** %3, align 8
+  %4 = load %struct.a*, %struct.a** %3, align 8
+  %5 = icmp eq %struct.a* %4, null
+  br i1 %5, label %6, label %8
 
-; <label>:5:                                      ; preds = %0
-  %6 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([6 x i8], [6 x i8]* @.str, i32 0, i32 0))
-  br label %7
+; <label>:6:                                      ; preds = %0
+  %7 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([6 x i8], [6 x i8]* @.str.1, i32 0, i32 0))
+  br label %8
 
-; <label>:7:                                      ; preds = %5, %0
+; <label>:8:                                      ; preds = %6, %0
   ret i32 0
 }
 
