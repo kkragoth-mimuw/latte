@@ -9,8 +9,12 @@ import Data.List
 import Data.Bool
 import Text.Printf
 
+import System.IO.Unsafe (unsafePerformIO)
+
 import AbsLatte
 import PrintLatte
+
+
 
 type TCM a = (ExceptT TypecheckErrorWithLogging (Reader TCEnv)) a
 
@@ -179,7 +183,8 @@ instance Typecheckable Program where
 
 fillTopDefsInformation :: [TopDef] -> TCM TCEnv
 fillTopDefsInformation [] = ask
-fillTopDefsInformation ((FnDef fnType fnName args (Block stmts)):xs) = do
+fillTopDefsInformation ((FnDef fnType (Ident fnNameNotNormalized) args (Block stmts)):xs) = do
+    let fnName = Ident (takeWhile (\c -> c /= '\'') fnNameNotNormalized)
     checkIfIsAlreadyDeclaredATCurrentLevel fnName
     env <- fillTopDefsInformation xs
 
@@ -267,7 +272,9 @@ typecheckMainBlock = do
 
 
 typecheckTopDef :: TopDef -> TCM ()
-typecheckTopDef (FnDef fnType fnName args (Block stmts)) = do 
+typecheckTopDef (FnDef fnType (Ident fnNameNotNormalized) args (Block stmts)) = do 
+    let fnName = Ident (takeWhile (\c -> c /= '\'') fnNameNotNormalized)
+    
     let argsNames = map (\(Arg _ ident) -> ident) args
     let argsTypes = map (\(Arg type' _) -> type') args
 

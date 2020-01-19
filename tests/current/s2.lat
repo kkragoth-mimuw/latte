@@ -1,0 +1,15 @@
+class list {
+  int elem;
+  list next;
+  string s;
+}
+
+int main() {
+  list a = new list;
+
+  if (a.next == (list)null) {
+    printString("a.next is null");
+  }
+
+  return 0;
+}
