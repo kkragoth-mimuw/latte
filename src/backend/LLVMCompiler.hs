@@ -17,6 +17,8 @@ import Text.Printf
 
 import AbsLatte 
 
+import Utils
+
 debugPrint = 0
 phiOptimization = 1
 
