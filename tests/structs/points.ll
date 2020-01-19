@@ -293,27 +293,28 @@ L0:
 	%r20 = load %Point3*, %Point3** %r11
 	call void @Point3__moveZ(%Point3* %r20,i32 7)
 	%r21 = load %Point3*, %Point3** %r11
-	store %Point3* %r21, %Point2** %r5
-	%r22 = load %Point2*, %Point2** %r5
-	call void @Point2__move(%Point2* %r22,i32 3,i32 5)
-	%r23 = load %Point4*, %Point4** %r18
-	call void @Point4__move(%Point4* %r23,i32 1,i32 3)
+	%r22 = bitcast %Point3* %r21 to %Point2*
+	store %Point2* %r22, %Point2** %r5
+	%r23 = load %Point2*, %Point2** %r5
+	call void @Point2__move(%Point2* %r23,i32 3,i32 5)
 	%r24 = load %Point4*, %Point4** %r18
-	call void @Point4__moveZ(%Point4* %r24,i32 6)
+	call void @Point4__move(%Point4* %r24,i32 1,i32 3)
 	%r25 = load %Point4*, %Point4** %r18
-	call void @Point4__moveW(%Point4* %r25,i32 2)
-	%r26 = load %Point2*, %Point2** %r5
-	%r27 = call i32 @Point2__getX(%Point2* %r26)
-	call void @printInt(i32 %r27)
-	%r28 = load %Point2*, %Point2** %r5
-	%r29 = call i32 @Point2__getY(%Point2* %r28)
-	call void @printInt(i32 %r29)
-	%r30 = load %Point3*, %Point3** %r11
-	%r31 = call i32 @Point3__getZ(%Point3* %r30)
-	call void @printInt(i32 %r31)
-	%r32 = load %Point4*, %Point4** %r18
-	%r33 = call i32 @Point4__getW(%Point4* %r32)
-	call void @printInt(i32 %r33)
+	call void @Point4__moveZ(%Point4* %r25,i32 6)
+	%r26 = load %Point4*, %Point4** %r18
+	call void @Point4__moveW(%Point4* %r26,i32 2)
+	%r27 = load %Point2*, %Point2** %r5
+	%r28 = call i32 @Point2__getX(%Point2* %r27)
+	call void @printInt(i32 %r28)
+	%r29 = load %Point2*, %Point2** %r5
+	%r30 = call i32 @Point2__getY(%Point2* %r29)
+	call void @printInt(i32 %r30)
+	%r31 = load %Point3*, %Point3** %r11
+	%r32 = call i32 @Point3__getZ(%Point3* %r31)
+	call void @printInt(i32 %r32)
+	%r33 = load %Point4*, %Point4** %r18
+	%r34 = call i32 @Point4__getW(%Point4* %r33)
+	call void @printInt(i32 %r34)
 	ret i32 0
 }
 

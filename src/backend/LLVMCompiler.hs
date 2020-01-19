@@ -133,7 +133,9 @@ data LLVMInstruction = Alloca LLVMVariable
     | Phi LLVMVariable [LLVMVariable]
     | Malloc Integer Integer
     | BitcastMalloc Integer Integer Type
+    | Bitcast LLVMVariable LLVMType LLVMVariable LLVMType
     | GEPClass LLVMVariable Type LLVMVariable Integer
+    
     | BranchConditional LLVMVariable Integer Integer deriving (Show)
 
 data LLVMAddress = LLVMAddressVoid
@@ -142,7 +144,7 @@ data LLVMAddress = LLVMAddressVoid
     | LLVMAddressNamedRegister String
     | LLVMAddressRegister Integer deriving (Show)
 
-data LLVMType = LLVMType Type | LLVMTypePointer LLVMType deriving (Show)
+data LLVMType = LLVMType Type | LLVMTypePointer LLVMType deriving (Show, Eq)
 
 data LLVMVariable = LLVMVariable {
     type' :: LLVMType,
@@ -458,18 +460,33 @@ compileStmt (BStmt block) = do
     ask
 compileStmt (Decl type' items) = compileDecls type' items
 compileStmt (Ass lvalue expr) = do
-    lhsMaybe <- getLValue lvalue
-    case lhsMaybe of
-        Just lhs -> do
-            rhs <- compileExpr expr
+    lvalueMaybe <- getLValue lvalue
+    lhs <- case (lvalueMaybe) of
+                    c@(Just lhs) -> return lhs
+                    Nothing -> do
+                        lvalueMaybe' <- getLValue (addThisToLValue lvalue)
+                        return $ fromJust $ lvalueMaybe'
+    rhs <- compileExpr expr
+
+    case (type' rhs, dereferencePointer $ type' lhs) of
+        (a, b) | a == b -> do
             emit (MemoryStore rhs lhs)
-            ask
-        Nothing -> do
-            lhsThis <- getLValue (addThisToLValue lvalue)
-            let lhs = fromJust $ lhsThis 
-            rhs <- compileExpr expr
-            emit (MemoryStore rhs lhs)
-            ask
+        (a, b) -> do
+            newRegister <- getNextRegisterCounter
+            blockLabel <- gets currentLabel
+
+            let typeCastResult = (LLVMVariable {
+                type' = dereferencePointer $ type' lhs,
+                address = LLVMAddressRegister newRegister,
+                blockLabel = blockLabel,
+                ident = Nothing
+            })
+
+            emit $ Bitcast typeCastResult (type' rhs) rhs (dereferencePointer $ type' lhs)
+            emit $ MemoryStore (typeCastResult) lhs
+        
+
+    ask
 compileStmt (Incr lvalue) = compileStmt (Ass lvalue (EAdd (ELValue lvalue) Plus (ELitInt 1)))
 compileStmt (Decr lvalue) = compileStmt (Ass lvalue (EAdd (ELValue lvalue) Minus (ELitInt 1)))
 compileStmt (Ret expr) = do
@@ -1272,6 +1289,7 @@ printLLVMInstruction (Phi v vars) = printf ("%s = phi %s %s") (printLLVMVarAddre
 printLLVMInstruction (Malloc res size) = printf ("%%r%s = call i8* @malloc(i32 %s)") (show res) (show size)
 printLLVMInstruction (BitcastMalloc res mallocAddress (ClassType (Ident i))) = printf ("%%r%s = bitcast i8* %%r%s to %%%s*") (show res) (show mallocAddress) (i)
 printLLVMInstruction (GEPClass rVar (ClassType (Ident cType)) lVar index) = printf("%s = getelementptr %%%s, %%%s* %s, i32 0, i32 %s") (printLLVMVarAddress rVar) (cType) (cType) (printLLVMVarAddress lVar) (show index)
+printLLVMInstruction (Bitcast resultVar fromType lVar toType) = printf("%s = bitcast %s %s to %s") (printLLVMVarAddress resultVar) (printLLVMType fromType) (printLLVMVarAddress lVar) (printLLVMType toType)
 printPhiVars :: [LLVMVariable] -> String
 printPhiVars vars = intercalate (", ") (map (\var -> (printf ("[ %s, %%%s ]") (printLLVMVarAddress var) (printLLVMVarLabel var))) vars)
 
