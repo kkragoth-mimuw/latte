@@ -38,7 +38,6 @@ class Point4 extends Point3 {
 
 int main () {
   Point2 p = new Point3;
-
   Point3 q = new Point3;
 
   Point4 r = new Point4;
