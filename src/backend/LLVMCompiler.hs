@@ -20,6 +20,8 @@ import AbsLatte
 debugPrint = 0
 phiOptimization = 1
 
+thisIdent = (Ident "this")
+
 type GenM a = (ExceptT CompilationError (ReaderT Env (StateT Store IO) )) a
 
 data CompilationError = CompilationErrorFunctionHasNoExplicitReturn Ident
@@ -36,7 +38,8 @@ runLLVMCompiler program = do
             let predefinedFunctions = showPredefinedFunctions
             let stringsDecl =  showStringsDeclarations (stringsMap store)
             let classDecl =  showClassesDeclarations (classes store)
-            return $ Right (predefinedFunctions ++ "\n" ++stringsDecl ++ "\n" ++ classDecl ++ res)
+            
+            return $ Right (predefinedFunctions ++ "\n" ++stringsDecl ++ "\n" ++ classDecl ++ "\n" ++ res)
 
 class Compilable f  where
     compile :: f -> GenM String
@@ -144,7 +147,8 @@ data LLVMVariable = LLVMVariable {
 
 data LLVMClass = LLVMClass {
     className :: Ident,
-    classFields :: [ClassField]
+    classFields :: [ClassField],
+    classMethods :: [ClassPole]
 } deriving (Show)
 
 data ClassField = ClassField {
@@ -168,8 +172,9 @@ calculateTypeSize (LLVMType Boolean) = 1 -- or 4??!?!?!? TODO
 instance Compilable Program where
     compile (Program topdefs) = do
         forM_ topdefs fillTopDefInformation
+        methodsDecl <- compileMethods
         result <- compileFnDefs topdefs
-        return result
+        return $ methodsDecl ++ "\n" ++ result
 
 
 fillTopDefInformation :: TopDef -> GenM ()
@@ -181,6 +186,11 @@ fillTopDefInformation (ClassDef ident classPoles) = do
     let onlyClassFields = filter (\classPole -> case classPole of 
                 (ClassFieldDef _ _) -> True
                 _ -> False
+            ) classPoles
+
+    let onlyClassMethods = filter (\classPole -> case classPole of 
+                (ClassFieldDef _ _) -> False
+                (ClassMethodDef _ _ _ _) -> True
             ) classPoles
 
     let classFieldsToStore = map (\(ClassFieldDef type' ident') -> case type' of
@@ -196,7 +206,8 @@ fillTopDefInformation (ClassDef ident classPoles) = do
 
     let classDef = LLVMClass {
         className = ident,
-        classFields = classFieldsToStore
+        classFields = classFieldsToStore,
+        classMethods = onlyClassMethods
     }
 
     modify (\store -> store {
@@ -240,6 +251,31 @@ getNewLabel = do
         })
     store <- get
     return $ labelCounter store
+
+compileMethods :: GenM String
+compileMethods = do
+    classesM <- gets classes
+    let classesList = Map.elems classesM
+    result <- mapM (\c -> compileMethodDefs c (classMethods c)) classesList
+    return $ intercalate ("\n") result
+
+compileMethodDefs :: LLVMClass -> [ClassPole] -> GenM String
+compileMethodDefs c [] = return ""
+compileMethodDefs c (x:xs) = do
+    result <- compileMethodDef c x
+    result2 <- compileMethodDefs c xs
+    return (result ++ result2)
+
+compileMethodDef :: LLVMClass -> ClassPole -> GenM String
+compileMethodDef c (ClassMethodDef returnType (Ident methodName) args block) = do
+    let cNameIdent@(Ident cName) = className c
+    let mangledMethodName = (Ident (cName ++ "__" ++ methodName))
+    let thisArg = Arg (ClassType cNameIdent) thisIdent
+    let mangledArgs = [thisArg] ++ args
+
+    local (\env -> env { currentClass = Just c} ) (compileFnDef (FnDef returnType mangledMethodName mangledArgs block))
+
+compileMethodDef _ _ = return ""
 
 compileFnDefs :: [TopDef] -> GenM String
 compileFnDefs [] = return ""

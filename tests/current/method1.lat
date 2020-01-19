@@ -1,0 +1,13 @@
+class point {
+  int x;
+  int y;
+
+  void printNothing() {
+      printString("nothing");
+  }
+}
+
+int main() {
+    point a = new point;
+    return 0;
+}
