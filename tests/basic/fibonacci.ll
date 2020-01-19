@@ -1,3 +1,4 @@
+declare i8* @malloc(i32) nounwind
 declare void @printInt(i32)
 declare void @printString(i8*)
 declare void @error()
@@ -6,6 +7,9 @@ declare i8* @readString()
 declare i8* @__concatStrings(i8*, i8*)
 
 @s1 = private constant [42 x i8] c"Expected a non-negative integer, but got:\00"
+
+
+
 
 define i32 @fibonacci(i32 %n) {
 L0:

@@ -472,13 +472,16 @@ compileStmt (CondElse expr stmtTrue stmtFalse) = do
     emitInSpecificBlock ifFalseStmtsLabel (Branch afterIfBlock)
     ask
 compileStmt (While ELitTrue stmt) = do
+    -- good catch ! 
     preConditionLabel <- gets currentLabel
     ifTrueBodyLabel <- getNewLabel
+    env <- ask
+    let newEnv = env { afterBlockJump = Just ifTrueBodyLabel }
     case stmt of
         (BStmt (Block stmts)) -> do
-            compileStmts stmts
+            local (const newEnv) (compileStmts stmts)
         _ -> do
-            compileStmt stmt
+            local (const newEnv) (compileStmt stmt)
     emit (Branch ifTrueBodyLabel)
 
     afterWhileLabel <- getNewLabel
@@ -699,12 +702,6 @@ compileExpr (ENew type'@(ClassType cIdent)) = do
 
     bitcastResult <- getNextRegisterCounter
     emit $ BitcastMalloc bitcastResult mallocResult type'
-
-    -- TODO INIT WITH DEFAULT VALUES
-    -- let classesM = classes store
-    -- let cFields = classFields $ fromJust $ Map.lookup cIdent classesM
-
-    -- forM_ cFields (\cField -> )
 
     return LLVMVariable {
         type' = LLVMTypePointer (LLVMType type'),
@@ -1043,13 +1040,9 @@ dereferencePointer (LLVMTypePointer t) = t
 dereferencePointer _ = error "not a pointer!"
 
 printLLVMClass :: LLVMClass -> String
-printLLVMClass c = (printf ("%%%s = type {\n%s\n}\n@%s_size = constant i32 ptrtoint (%%%s* getelementptr (%%%s, %%%s* null, i32 1) to i32)\n")
+printLLVMClass c = (printf ("%%%s = type {\n\t%s\n}\n")
             (showIdent $ className c)
-            (intercalate (",\n") (map printLLVMType (map (\cF -> classFieldType cF) (classFields c))))
-            (showIdent $ className c)
-            (showIdent $ className c)
-            (showIdent $ className c)
-            (showIdent $ className c)
+            (intercalate (",\n\t") (map printLLVMType (map (\cF -> classFieldType cF) (classFields c))))
         )
 
 -- I dont want to do this in typeclass SHOW cause I need additional info for debuging for optimizations

@@ -28,6 +28,12 @@ config = Box({
             ],
             "PATH": "tests/my/"
         },
+        {
+            "NAME": "STRUCTS",
+            "WHITELIST_TESTS": [
+            ],
+            "PATH": "tests/structs/"
+        },
     ]
 })
 

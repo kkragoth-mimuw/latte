@@ -1,3 +1,4 @@
+declare i8* @malloc(i32) nounwind
 declare void @printInt(i32)
 declare void @printString(i8*)
 declare void @error()
@@ -13,6 +14,9 @@ ldc "zle "
 invokevirtual java/io/PrintStream/print(Ljava/lang/String;)V
 goto powrot
 ldc "\00"
+
+
+
 
 define i32 @f(i32 %p) {
 L0:

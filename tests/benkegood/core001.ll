@@ -1,3 +1,4 @@
+declare i8* @malloc(i32) nounwind
 declare void @printInt(i32)
 declare void @printString(i8*)
 declare void @error()
@@ -9,6 +10,9 @@ declare i8* @__concatStrings(i8*, i8*)
 @s4 = private constant [9 x i8] c"/* world\00"
 @s2 = private constant [2 x i8] c"=\00"
 @s3 = private constant [9 x i8] c"hello */\00"
+
+
+
 
 define i32 @main() {
 L0:
