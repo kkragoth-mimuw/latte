@@ -194,6 +194,9 @@ instance Compilable Program where
         modify (\store -> store {
             classes = classesMap
         })
+        liftIO $ putStrLn $ "shouldnt be empty"
+        store <- get
+        liftIO $ putStrLn $ show $ classes store
         forM (Map.elems classesMap) fillClassMethodsInformation
         methodsDecl <- compileMethods
         result <- compileFnDefs topdefs
@@ -490,10 +493,18 @@ compileStmt (BStmt block) = do
     ask
 compileStmt (Decl type' items) = compileDecls type' items
 compileStmt (Ass lvalue expr) = do
-    lhs <- getLValue lvalue
-    rhs <- compileExpr expr
-    emit (MemoryStore rhs lhs)
-    ask
+    lhsMaybe <- getLValue lvalue
+    case lhsMaybe of
+        Just lhs -> do
+            rhs <- compileExpr expr
+            emit (MemoryStore rhs lhs)
+            ask
+        Nothing -> do
+            lhsThis <- getLValue (addThisToLValue lvalue)
+            let lhs = fromJust $ lhsThis 
+            rhs <- compileExpr expr
+            emit (MemoryStore rhs lhs)
+            ask
 compileStmt (Incr lvalue) = compileStmt (Ass lvalue (EAdd (ELValue lvalue) Plus (ELitInt 1)))
 compileStmt (Decr lvalue) = compileStmt (Ass lvalue (EAdd (ELValue lvalue) Minus (ELitInt 1)))
 compileStmt (Ret expr) = do
@@ -749,37 +760,80 @@ defaultVariable c@(ClassType ident) = do
 
 
 compileExpr :: Expr -> GenM LLVMVariable
-compileExpr (ELValue (LValue ident)) = do
+-- compileExpr (ELValue (LValue ident)) = do
+--     store <- get
+--     varsMap <- asks vars
+--     let var = fromJust $ Map.lookup ident varsMap
+--     newRegisterNumber <- getNextRegisterCounter
+--     let registerVar = (LLVMVariable {
+--         type' = dereferencePointer $ type' var,
+--         address = LLVMAddressRegister newRegisterNumber,
+--         blockLabel = currentLabel store,
+--         ident = Just ident
+--     })
+--     emit (Load registerVar var)
+--     return registerVar
+-- compileExpr (ELValue l@(LValueClassField lvalue ident)) = do
+--     lResultMaybe <- getLValue l
+--     store <- get
+--     case lResultMaybe of
+--         Just lResult -> do
+--             newRegisterNumber <- getNextRegisterCounter
+--             let registerVar = LLVMVariable {
+--                 type' = dereferencePointer $ type' lResult,
+--                 address = LLVMAddressRegister newRegisterNumber,
+--                 blockLabel = currentLabel store,
+--                 ident = Nothing
+--             }
+--             emit (Load registerVar lResult)
+--             return registerVar
+--         Nothing -> do
+--             lResultThis <- getLValue (addThisToLValue lvalue)
+--             let lResult = fromJust $ lResultThis
+--             newRegisterNumber <- getNextRegisterCounter
+--             let registerVar = LLVMVariable {
+--                 type' = dereferencePointer $ type' lResult,
+--                 address = LLVMAddressRegister newRegisterNumber,
+--                 blockLabel = currentLabel store,
+--                 ident = Nothing
+--             }
+--             emit (Load registerVar lResult)
+--             return registerVar
+compileExpr (ELValue l) = do
+    lResultMaybe <- getLValue l
     store <- get
-    varsMap <- asks vars
-    let var = fromJust $ Map.lookup ident varsMap
-    newRegisterNumber <- getNextRegisterCounter
-    let registerVar = (LLVMVariable {
-        type' = dereferencePointer $ type' var,
-        address = LLVMAddressRegister newRegisterNumber,
-        blockLabel = currentLabel store,
-        ident = Just ident
-    })
-    emit (Load registerVar var)
-    return registerVar
-compileExpr (ELValue l@(LValueClassField lvalue ident)) = do
-    lResult <- getLValue l
-    store <- get
-    newRegisterNumber <- getNextRegisterCounter
-    let registerVar = LLVMVariable {
-        type' = dereferencePointer $ type' lResult,
-        address = LLVMAddressRegister newRegisterNumber,
-        blockLabel = currentLabel store,
-        ident = Nothing
-    }
-    emit (Load registerVar lResult)
-    return registerVar
-compileExpr (ELValue(LValueArrayElem lvalue expr)) = error "TODO"
+    case lResultMaybe of
+        Just lResult -> do
+            newRegisterNumber <- getNextRegisterCounter
+            let registerVar = LLVMVariable {
+                type' = dereferencePointer $ type' lResult,
+                address = LLVMAddressRegister newRegisterNumber,
+                blockLabel = currentLabel store,
+                ident = Nothing
+            }
+            emit (Load registerVar lResult)
+            return registerVar
+        Nothing -> do
+            lResultThis <- getLValue (addThisToLValue l)
+            let lResult = fromJust $ lResultThis
+            newRegisterNumber <- getNextRegisterCounter
+            let registerVar = LLVMVariable {
+                type' = dereferencePointer $ type' lResult,
+                address = LLVMAddressRegister newRegisterNumber,
+                blockLabel = currentLabel store,
+                ident = Nothing
+            }
+            emit (Load registerVar lResult)
+            return registerVar
+-- compileExpr (ELValue(LValueArrayElem lvalue expr)) = error "TODO"
 compileExpr (ENew type'@(ClassType cIdent)) = do
     store <- get
     blockLabel <- gets currentLabel
 
     -- TODO SIZE !!!!!!!!!!!!
+    liftIO $ putStrLn $ "trying to access 834: classes lookup"
+    liftIO $ putStrLn $ show cIdent
+    liftIO $ putStrLn $ show $ classes store
     let c = fromJust $ Map.lookup cIdent (classes store)
     let size = calculateClassSize (c)
 
@@ -856,7 +910,13 @@ compileExpr (EApp (LValue name) exprs) = do
             emit (Call result name args)
             return result
 compileExpr (EApp (LValueClassField lvalue (Ident ident)) exprs) = do
-    lvalueVarPointer <- getLValue lvalue
+    lvalueVarPointerMaybe <- getLValue lvalue
+
+    lvalueVarPointer <- case lvalueVarPointerMaybe of
+            Just lvalueVarPointer -> return lvalueVarPointer
+            Nothing -> do
+                lvalueVarThisPointerMaybe <- getLValue (addThisToLValue lvalue)
+                return $ fromJust $ lvalueVarPointerMaybe
 
     lvalueLoadedReg <- getNextRegisterCounter
 
@@ -876,6 +936,10 @@ compileExpr (EApp (LValueClassField lvalue (Ident ident)) exprs) = do
     let (LLVMTypePointer (LLVMType (ClassType (Ident cIdent)))) = type' lvalueVarLoaded
 
     let name = Ident (cIdent ++ "__" ++ ident)
+
+    liftIO $ putStrLn $ "trying to access"
+    liftIO $ putStrLn $ show name
+    liftIO $ putStrLn $ show $ functions store
 
     let func = fromJust $ Map.lookup name (functions store)
     case func of
@@ -1094,44 +1158,47 @@ getLoc ident = do
     let var = fromJust $ Map.lookup ident varsMap
     return $ address var
 
-getLValue :: LValue -> GenM LLVMVariable
+getLValue :: LValue -> GenM (Maybe LLVMVariable)
 getLValue (LValue ident) = do
     varsMap <- asks vars
-    return $ fromJust $ Map.lookup ident varsMap
+    return $ Map.lookup ident varsMap
 getLValue (LValueClassField lvalue ident) = do
-    lvalueVarPointer <- getLValue lvalue
-    let (LLVMTypePointer (LLVMTypePointer (LLVMType cType@(ClassType cIdent)))) = type' lvalueVarPointer
+    lvalueVarPointerMaybe <- getLValue lvalue
+    case lvalueVarPointerMaybe of
+        Nothing -> return Nothing
+        Just lvalueVarPointer -> do
+            let (LLVMTypePointer (LLVMTypePointer (LLVMType cType@(ClassType cIdent)))) = type' lvalueVarPointer
 
-    blockLabel <- gets currentLabel
+            blockLabel <- gets currentLabel
 
-    lvalueReg <- getNextRegisterCounter
-    let lvalueVar = LLVMVariable {
-        type' = (LLVMTypePointer (LLVMType cType)),
-        address = LLVMAddressRegister lvalueReg,
-        blockLabel = blockLabel,
-        ident = Nothing
-    }
+            lvalueReg <- getNextRegisterCounter
+            let lvalueVar = LLVMVariable {
+                type' = (LLVMTypePointer (LLVMType cType)),
+                address = LLVMAddressRegister lvalueReg,
+                blockLabel = blockLabel,
+                ident = Nothing
+            }
 
-    emit $ (Load lvalueVar lvalueVarPointer)
-    
-    classesM <- gets classes
-    let classFs = llvmClassFields $ fromJust $ Map.lookup cIdent classesM
-    let index = fromJust $ findIndex (\cF -> classFieldName cF == ident) classFs
-    let identType = classFieldType $ classFs!!index
+            emit $ (Load lvalueVar lvalueVarPointer)
+            
+            classesM <- gets classes
+            let classFs = llvmClassFields $ fromJust $ Map.lookup cIdent classesM
+            let index = fromJust $ findIndex (\cF -> classFieldName cF == ident) classFs
+            let identType = classFieldType $ classFs!!index
 
-    blockLabel <- gets currentLabel
+            blockLabel <- gets currentLabel
 
-    newRegister <- getNextRegisterCounter
-    let result = LLVMVariable {
-        type' = LLVMTypePointer identType,
-        address = LLVMAddressRegister newRegister,
-        blockLabel = blockLabel,
-        ident = Nothing
-    }
+            newRegister <- getNextRegisterCounter
+            let result = LLVMVariable {
+                type' = LLVMTypePointer identType,
+                address = LLVMAddressRegister newRegister,
+                blockLabel = blockLabel,
+                ident = Nothing
+            }
 
-    liftIO $ putStrLn $ show cType
-    emit $ GEPClass result cType lvalueVar (toInteger index)
-    return result
+            liftIO $ putStrLn $ show cType
+            emit $ GEPClass result cType lvalueVar (toInteger index)
+            return $ Just result
 getLValue _ = error "todo"
 
 showIdent :: Ident -> String
@@ -1247,3 +1314,7 @@ showPredefinedFunctions = (intercalate ("\n") ([
         "declare i8* @readString()",
         "declare i8* @__concatStrings(i8*, i8*)"
     ])) ++ "\n"
+
+addThisToLValue :: LValue -> LValue
+addThisToLValue (LValue ident) = LValueClassField (LValue thisIdent) (ident)
+addThisToLValue (LValueClassField lvalue ident) = LValueClassField (addThisToLValue lvalue) (ident)

@@ -27,7 +27,7 @@ createClassMapFromTopDefs topDefs =  classMapFromTopDefs topDefs classDefMap Map
 
 classMapFromTopDefs :: [TopDef] -> ClassDefMap -> ClassMap -> ClassMap
 classMapFromTopDefs [] _  m = m
-classMapFromTopDefs ((ClassDef ident classPoles):xs) cM m= case (Map.lookup ident) m of
+classMapFromTopDefs ((ClassDef ident classPoles):xs) cM m = case (Map.lookup ident) m of
                                                                         Just _ -> classMapFromTopDefs xs cM m
                                                                         Nothing -> let newM = Map.insert ident (classFromPoles ident classPoles) m in
                                                                                         classMapFromTopDefs xs cM newM
@@ -40,7 +40,7 @@ classMapFromTopDefs ((ClassDefExt ident identBase classPoles):xs) cM m = case (M
                                                                                                 let baseC = fromJust $ Map.lookup identBase m in
                                                                                                     let newM = Map.insert ident (extendClass baseC (classFromPoles ident classPoles)) m in
                                                                                                         classMapFromTopDefs xs cM newM
-classMapFromTopDefs _ _ m = m
+classMapFromTopDefs ((_):xs) cM m = classMapFromTopDefs xs cM m
 
 classFromPoles :: Ident -> [ClassPole] -> Class
 classFromPoles ident classPoles = Class {
