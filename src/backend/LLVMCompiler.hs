@@ -43,12 +43,14 @@ class Compilable f  where
 
 data Env = Env {
     vars :: Map.Map Ident LLVMVariable,
-    afterBlockJump :: Maybe Integer
+    afterBlockJump :: Maybe Integer,
+    currentClass :: Maybe LLVMClass
 }
 
 initEnv = Env {
     vars = Map.empty,
-    afterBlockJump = Nothing
+    afterBlockJump = Nothing,
+    currentClass = Nothing
 }
 
 data Store = Store {
@@ -140,6 +142,19 @@ data ClassField = ClassField {
     classFieldName :: Ident,
     classFieldType :: LLVMType
 } deriving (Show)
+
+calculateClassSize :: LLVMClass -> Integer
+calculateClassSize c = sum fieldSizes where
+                                fieldSizes = map calculateFieldSize (classFields c)
+
+calculateFieldSize :: ClassField -> Integer
+calculateFieldSize cf = calculateTypeSize (classFieldType cf)
+
+calculateTypeSize :: LLVMType -> Integer
+calculateTypeSize (LLVMTypePointer _) = 8
+calculateTypeSize (LLVMType Str) = 8
+calculateTypeSize (LLVMType Int) = 4
+calculateTypeSize (LLVMType Boolean) = 1 -- or 4??!?!?!? TODO
 
 instance Compilable Program where
     compile (Program topdefs) = do
@@ -249,13 +264,10 @@ compileFnDef (FnDef type' ident args (Block stmts)) = do
     functionBlocksMap <- gets functionBlocks
     let blockMap = fromJust $ Map.lookup ident functionBlocksMap
     optimizedBlockMap <- optimizeBlockMapReturn blockMap
-    -- let optimizedBlockMap = blockMap -- noOptimize
 
     modify (\store -> (store {
         functionBlocks = Map.insert ident (optimizedBlockMap) functionBlocksMap
     }))
-
-    -- TODO OPTIMIZE PHI BLOCK
 
     store <- get
 
@@ -676,8 +688,11 @@ compileExpr (ENew type'@(ClassType cIdent)) = do
     store <- get
     blockLabel <- gets currentLabel
 
-    -- TODO SIZE
-    let size = 2
+    -- TODO SIZE !!!!!!!!!!!!
+    let c = fromJust $ Map.lookup cIdent (classes store)
+    let size = calculateClassSize (c)
+
+    liftIO $ putStrLn $ printf ("calculated size: %s\n") (show size)
 
     mallocResult <- getNextRegisterCounter
     emit $ Malloc mallocResult size

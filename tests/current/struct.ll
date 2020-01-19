@@ -45,7 +45,7 @@ L0:
 	store %list* %xs, %list** %r1
 	%r2 = alloca %list*
 	store %list* null, %list** %r2
-	%r3 = call i8* @malloc(i32 2)
+	%r3 = call i8* @malloc(i32 12)
 	%r4 = bitcast i8* %r3 to %list*
 	store %list* %r4, %list** %r2
 	%r5 = load %list*, %list** %r2
