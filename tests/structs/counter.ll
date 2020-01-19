@@ -15,10 +15,10 @@ declare i8* @__concatStrings(i8*, i8*)
 
 
 
-define void @Counter__incr(%Counter* %this) {
+define void @Counter__incr(%Counter* %self) {
 L0:
 	%r0 = alloca %Counter*
-	store %Counter* %this, %Counter** %r0
+	store %Counter* %self, %Counter** %r0
 	%r1 = load %Counter*, %Counter** %r0
 	%r2 = getelementptr %Counter, %Counter* %r1, i32 0, i32 0
 	%r3 = load %Counter*, %Counter** %r0
@@ -29,10 +29,10 @@ L0:
 	ret void
 }
 
-define i32 @Counter__value(%Counter* %this) {
+define i32 @Counter__value(%Counter* %self) {
 L0:
 	%r0 = alloca %Counter*
-	store %Counter* %this, %Counter** %r0
+	store %Counter* %self, %Counter** %r0
 	%r1 = load %Counter*, %Counter** %r0
 	%r2 = getelementptr %Counter, %Counter* %r1, i32 0, i32 0
 	%r3 = load i32, i32* %r2

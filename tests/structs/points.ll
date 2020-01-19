@@ -29,10 +29,10 @@ declare i8* @__concatStrings(i8*, i8*)
 
 
 
-define void @Point2__move(%Point2* %this, i32 %dx, i32 %dy) {
+define void @Point2__move(%Point2* %self, i32 %dx, i32 %dy) {
 L0:
 	%r0 = alloca %Point2*
-	store %Point2* %this, %Point2** %r0
+	store %Point2* %self, %Point2** %r0
 	%r1 = alloca i32
 	store i32 %dx, i32* %r1
 	%r2 = alloca i32
@@ -56,20 +56,20 @@ L0:
 	ret void
 }
 
-define i32 @Point2__getX(%Point2* %this) {
+define i32 @Point2__getX(%Point2* %self) {
 L0:
 	%r0 = alloca %Point2*
-	store %Point2* %this, %Point2** %r0
+	store %Point2* %self, %Point2** %r0
 	%r1 = load %Point2*, %Point2** %r0
 	%r2 = getelementptr %Point2, %Point2* %r1, i32 0, i32 0
 	%r3 = load i32, i32* %r2
 	ret i32 %r3
 }
 
-define i32 @Point2__getY(%Point2* %this) {
+define i32 @Point2__getY(%Point2* %self) {
 L0:
 	%r0 = alloca %Point2*
-	store %Point2* %this, %Point2** %r0
+	store %Point2* %self, %Point2** %r0
 	%r1 = load %Point2*, %Point2** %r0
 	%r2 = getelementptr %Point2, %Point2* %r1, i32 0, i32 1
 	%r3 = load i32, i32* %r2
@@ -77,10 +77,10 @@ L0:
 }
 
 
-define void @Point3__move(%Point3* %this, i32 %dx, i32 %dy) {
+define void @Point3__move(%Point3* %self, i32 %dx, i32 %dy) {
 L0:
 	%r0 = alloca %Point3*
-	store %Point3* %this, %Point3** %r0
+	store %Point3* %self, %Point3** %r0
 	%r1 = alloca i32
 	store i32 %dx, i32* %r1
 	%r2 = alloca i32
@@ -104,30 +104,30 @@ L0:
 	ret void
 }
 
-define i32 @Point3__getX(%Point3* %this) {
+define i32 @Point3__getX(%Point3* %self) {
 L0:
 	%r0 = alloca %Point3*
-	store %Point3* %this, %Point3** %r0
+	store %Point3* %self, %Point3** %r0
 	%r1 = load %Point3*, %Point3** %r0
 	%r2 = getelementptr %Point3, %Point3* %r1, i32 0, i32 0
 	%r3 = load i32, i32* %r2
 	ret i32 %r3
 }
 
-define i32 @Point3__getY(%Point3* %this) {
+define i32 @Point3__getY(%Point3* %self) {
 L0:
 	%r0 = alloca %Point3*
-	store %Point3* %this, %Point3** %r0
+	store %Point3* %self, %Point3** %r0
 	%r1 = load %Point3*, %Point3** %r0
 	%r2 = getelementptr %Point3, %Point3* %r1, i32 0, i32 1
 	%r3 = load i32, i32* %r2
 	ret i32 %r3
 }
 
-define void @Point3__moveZ(%Point3* %this, i32 %dz) {
+define void @Point3__moveZ(%Point3* %self, i32 %dz) {
 L0:
 	%r0 = alloca %Point3*
-	store %Point3* %this, %Point3** %r0
+	store %Point3* %self, %Point3** %r0
 	%r1 = alloca i32
 	store i32 %dz, i32* %r1
 	%r2 = load %Point3*, %Point3** %r0
@@ -141,10 +141,10 @@ L0:
 	ret void
 }
 
-define i32 @Point3__getZ(%Point3* %this) {
+define i32 @Point3__getZ(%Point3* %self) {
 L0:
 	%r0 = alloca %Point3*
-	store %Point3* %this, %Point3** %r0
+	store %Point3* %self, %Point3** %r0
 	%r1 = load %Point3*, %Point3** %r0
 	%r2 = getelementptr %Point3, %Point3* %r1, i32 0, i32 2
 	%r3 = load i32, i32* %r2
@@ -152,10 +152,10 @@ L0:
 }
 
 
-define void @Point4__move(%Point4* %this, i32 %dx, i32 %dy) {
+define void @Point4__move(%Point4* %self, i32 %dx, i32 %dy) {
 L0:
 	%r0 = alloca %Point4*
-	store %Point4* %this, %Point4** %r0
+	store %Point4* %self, %Point4** %r0
 	%r1 = alloca i32
 	store i32 %dx, i32* %r1
 	%r2 = alloca i32
@@ -179,30 +179,30 @@ L0:
 	ret void
 }
 
-define i32 @Point4__getX(%Point4* %this) {
+define i32 @Point4__getX(%Point4* %self) {
 L0:
 	%r0 = alloca %Point4*
-	store %Point4* %this, %Point4** %r0
+	store %Point4* %self, %Point4** %r0
 	%r1 = load %Point4*, %Point4** %r0
 	%r2 = getelementptr %Point4, %Point4* %r1, i32 0, i32 0
 	%r3 = load i32, i32* %r2
 	ret i32 %r3
 }
 
-define i32 @Point4__getY(%Point4* %this) {
+define i32 @Point4__getY(%Point4* %self) {
 L0:
 	%r0 = alloca %Point4*
-	store %Point4* %this, %Point4** %r0
+	store %Point4* %self, %Point4** %r0
 	%r1 = load %Point4*, %Point4** %r0
 	%r2 = getelementptr %Point4, %Point4* %r1, i32 0, i32 1
 	%r3 = load i32, i32* %r2
 	ret i32 %r3
 }
 
-define void @Point4__moveZ(%Point4* %this, i32 %dz) {
+define void @Point4__moveZ(%Point4* %self, i32 %dz) {
 L0:
 	%r0 = alloca %Point4*
-	store %Point4* %this, %Point4** %r0
+	store %Point4* %self, %Point4** %r0
 	%r1 = alloca i32
 	store i32 %dz, i32* %r1
 	%r2 = load %Point4*, %Point4** %r0
@@ -216,20 +216,20 @@ L0:
 	ret void
 }
 
-define i32 @Point4__getZ(%Point4* %this) {
+define i32 @Point4__getZ(%Point4* %self) {
 L0:
 	%r0 = alloca %Point4*
-	store %Point4* %this, %Point4** %r0
+	store %Point4* %self, %Point4** %r0
 	%r1 = load %Point4*, %Point4** %r0
 	%r2 = getelementptr %Point4, %Point4* %r1, i32 0, i32 2
 	%r3 = load i32, i32* %r2
 	ret i32 %r3
 }
 
-define void @Point4__moveW(%Point4* %this, i32 %dw) {
+define void @Point4__moveW(%Point4* %self, i32 %dw) {
 L0:
 	%r0 = alloca %Point4*
-	store %Point4* %this, %Point4** %r0
+	store %Point4* %self, %Point4** %r0
 	%r1 = alloca i32
 	store i32 %dw, i32* %r1
 	%r2 = load %Point4*, %Point4** %r0
@@ -243,10 +243,10 @@ L0:
 	ret void
 }
 
-define i32 @Point4__getW(%Point4* %this) {
+define i32 @Point4__getW(%Point4* %self) {
 L0:
 	%r0 = alloca %Point4*
-	store %Point4* %this, %Point4** %r0
+	store %Point4* %self, %Point4** %r0
 	%r1 = load %Point4*, %Point4** %r0
 	%r2 = getelementptr %Point4, %Point4* %r1, i32 0, i32 3
 	%r3 = load i32, i32* %r2

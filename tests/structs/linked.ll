@@ -1,0 +1,170 @@
+declare i8* @malloc(i32) nounwind
+declare void @printInt(i32)
+declare void @printString(i8*)
+declare void @error()
+declare i32 @readInt()
+declare i8* @readString()
+declare i8* @__concatStrings(i8*, i8*)
+
+
+
+
+%Node = type {
+	i32,
+	%Node*
+}
+
+%Stack = type {
+	%Node*
+}
+
+
+
+define void @Node__setElem(%Node* %self, i32 %c) {
+L0:
+	%r0 = alloca %Node*
+	store %Node* %self, %Node** %r0
+	%r1 = alloca i32
+	store i32 %c, i32* %r1
+	%r2 = load %Node*, %Node** %r0
+	%r3 = getelementptr %Node, %Node* %r2, i32 0, i32 0
+	%r4 = load i32, i32* %r1
+	store i32 %r4, i32* %r3
+	ret void
+}
+
+define void @Node__setNext(%Node* %self, %Node* %n) {
+L0:
+	%r0 = alloca %Node*
+	store %Node* %self, %Node** %r0
+	%r1 = alloca %Node*
+	store %Node* %n, %Node** %r1
+	%r2 = load %Node*, %Node** %r0
+	%r3 = getelementptr %Node, %Node* %r2, i32 0, i32 1
+	%r4 = load %Node*, %Node** %r1
+	store %Node* %r4, %Node** %r3
+	ret void
+}
+
+define i32 @Node__getElem(%Node* %self) {
+L0:
+	%r0 = alloca %Node*
+	store %Node* %self, %Node** %r0
+	%r1 = load %Node*, %Node** %r0
+	%r2 = getelementptr %Node, %Node* %r1, i32 0, i32 0
+	%r3 = load i32, i32* %r2
+	ret i32 %r3
+}
+
+define %Node* @Node__getNext(%Node* %self) {
+L0:
+	%r0 = alloca %Node*
+	store %Node* %self, %Node** %r0
+	%r1 = load %Node*, %Node** %r0
+	%r2 = getelementptr %Node, %Node* %r1, i32 0, i32 1
+	%r3 = load %Node*, %Node** %r2
+	ret %Node* %r3
+}
+
+
+define void @Stack__push(%Stack* %self, i32 %c) {
+L0:
+	%r0 = alloca %Stack*
+	store %Stack* %self, %Stack** %r0
+	%r1 = alloca i32
+	store i32 %c, i32* %r1
+	%r2 = call i8* @malloc(i32 12)
+	%r3 = bitcast i8* %r2 to %Node*
+	%r4 = alloca %Node*
+	store %Node* %r3, %Node** %r4
+	%r5 = load %Node*, %Node** %r4
+	%r6 = load i32, i32* %r1
+	call void @Node__setElem(%Node* %r5,i32 %r6)
+	%r7 = load %Node*, %Node** %r4
+	%r8 = load %Stack*, %Stack** %r0
+	%r9 = getelementptr %Stack, %Stack* %r8, i32 0, i32 0
+	%r10 = load %Node*, %Node** %r9
+	call void @Node__setNext(%Node* %r7,%Node* %r10)
+	%r11 = load %Stack*, %Stack** %r0
+	%r12 = getelementptr %Stack, %Stack* %r11, i32 0, i32 0
+	%r13 = load %Node*, %Node** %r4
+	store %Node* %r13, %Node** %r12
+	ret void
+}
+
+define i1 @Stack__isEmpty(%Stack* %self) {
+L0:
+	%r0 = alloca %Stack*
+	store %Stack* %self, %Stack** %r0
+	%r1 = load %Stack*, %Stack** %r0
+	%r2 = getelementptr %Stack, %Stack* %r1, i32 0, i32 0
+	%r3 = load %Node*, %Node** %r2
+	%r4 = icmp eq %Node* %r3, null
+	ret i1 %r4
+}
+
+define i32 @Stack__top(%Stack* %self) {
+L0:
+	%r0 = alloca %Stack*
+	store %Stack* %self, %Stack** %r0
+	%r1 = load %Stack*, %Stack** %r0
+	%r2 = getelementptr %Stack, %Stack* %r1, i32 0, i32 0
+	%r3 = load %Node*, %Node** %r2
+	%r4 = call i32 @Node__getElem(%Node* %r3)
+	ret i32 %r4
+}
+
+define void @Stack__pop(%Stack* %self) {
+L0:
+	%r0 = alloca %Stack*
+	store %Stack* %self, %Stack** %r0
+	%r1 = load %Stack*, %Stack** %r0
+	%r2 = getelementptr %Stack, %Stack* %r1, i32 0, i32 0
+	%r3 = load %Stack*, %Stack** %r0
+	%r4 = getelementptr %Stack, %Stack* %r3, i32 0, i32 0
+	%r5 = load %Node*, %Node** %r4
+	%r6 = call %Node* @Node__getNext(%Node* %r5)
+	store %Node* %r6, %Node** %r2
+	ret void
+}
+
+
+define i32 @main() {
+L0:
+	%r0 = call i8* @malloc(i32 8)
+	%r1 = bitcast i8* %r0 to %Stack*
+	%r2 = alloca %Stack*
+	store %Stack* %r1, %Stack** %r2
+	%r3 = alloca i32
+	store i32 0, i32* %r3
+	br label %L1
+L1:
+	%r4 = load i32, i32* %r3
+	%r5 = icmp slt i32 %r4, 10
+	br i1 %r5, label %L2, label %L3
+L2:
+	%r6 = load %Stack*, %Stack** %r2
+	%r7 = load i32, i32* %r3
+	call void @Stack__push(%Stack* %r6,i32 %r7)
+	%r8 = load i32, i32* %r3
+	%r9 = add i32 %r8, 1
+	store i32 %r9, i32* %r3
+	br label %L1
+L3:
+	br label %L4
+L4:
+	%r10 = load %Stack*, %Stack** %r2
+	%r11 = call i1 @Stack__isEmpty(%Stack* %r10)
+	%r12 = xor i1 1, %r11
+	br i1 %r12, label %L5, label %L6
+L5:
+	%r13 = load %Stack*, %Stack** %r2
+	%r14 = call i32 @Stack__top(%Stack* %r13)
+	call void @printInt(i32 %r14)
+	%r15 = load %Stack*, %Stack** %r2
+	call void @Stack__pop(%Stack* %r15)
+	br label %L4
+L6:
+	ret i32 0
+}
+

@@ -3,6 +3,9 @@
 -- TODO: https://buildmedia.readthedocs.org/media/pdf/mapping-high-level-constructs-to-llvm-ir/latest/mapping-high-level-constructs-to-llvm-ir.pdf
 -- export PATH=$PATH:/usr/local/opt/llvm/bin/
 
+-- TODO:
+-- ENEW -> default variables
+
 module LLVMCompiler where
 
 import           Control.Monad.Except
@@ -22,7 +25,7 @@ import Utils
 debugPrint = 0
 phiOptimization = 1
 
-thisIdent = (Ident "this")
+thisIdent = (Ident "self") -- Seriously have to check all tests to see this ;_;
 
 type GenM a = (ExceptT CompilationError (ReaderT Env (StateT Store IO) )) a
 
@@ -194,9 +197,6 @@ instance Compilable Program where
         modify (\store -> store {
             classes = classesMap
         })
-        liftIO $ putStrLn $ "shouldnt be empty"
-        store <- get
-        liftIO $ putStrLn $ show $ classes store
         forM (Map.elems classesMap) fillClassMethodsInformation
         methodsDecl <- compileMethods
         result <- compileFnDefs topdefs
@@ -830,10 +830,6 @@ compileExpr (ENew type'@(ClassType cIdent)) = do
     store <- get
     blockLabel <- gets currentLabel
 
-    -- TODO SIZE !!!!!!!!!!!!
-    liftIO $ putStrLn $ "trying to access 834: classes lookup"
-    liftIO $ putStrLn $ show cIdent
-    liftIO $ putStrLn $ show $ classes store
     let c = fromJust $ Map.lookup cIdent (classes store)
     let size = calculateClassSize (c)
 
@@ -844,6 +840,8 @@ compileExpr (ENew type'@(ClassType cIdent)) = do
 
     bitcastResult <- getNextRegisterCounter
     emit $ BitcastMalloc bitcastResult mallocResult type'
+
+    -- TODO: DEFAULT VARIABLES
 
     return LLVMVariable {
         type' = LLVMTypePointer (LLVMType type'),
@@ -916,7 +914,7 @@ compileExpr (EApp (LValueClassField lvalue (Ident ident)) exprs) = do
             Just lvalueVarPointer -> return lvalueVarPointer
             Nothing -> do
                 lvalueVarThisPointerMaybe <- getLValue (addThisToLValue lvalue)
-                return $ fromJust $ lvalueVarPointerMaybe
+                return $ fromJust $ lvalueVarThisPointerMaybe
 
     lvalueLoadedReg <- getNextRegisterCounter
 
@@ -932,14 +930,9 @@ compileExpr (EApp (LValueClassField lvalue (Ident ident)) exprs) = do
     let args = [lvalueVarLoaded] ++ argsWithoutThis
     store <- get
 
-    liftIO $ putStrLn $ show $ type' lvalueVarLoaded
     let (LLVMTypePointer (LLVMType (ClassType (Ident cIdent)))) = type' lvalueVarLoaded
 
     let name = Ident (cIdent ++ "__" ++ ident)
-
-    liftIO $ putStrLn $ "trying to access"
-    liftIO $ putStrLn $ show name
-    liftIO $ putStrLn $ show $ functions store
 
     let func = fromJust $ Map.lookup name (functions store)
     case func of
@@ -1183,6 +1176,7 @@ getLValue (LValueClassField lvalue ident) = do
             
             classesM <- gets classes
             let classFs = llvmClassFields $ fromJust $ Map.lookup cIdent classesM
+            liftIO $ putStrLn $ "TRYING TO ACCESS " ++ show ident ++ " In " ++ (show cIdent)
             let index = fromJust $ findIndex (\cF -> classFieldName cF == ident) classFs
             let identType = classFieldType $ classFs!!index
 
@@ -1196,7 +1190,6 @@ getLValue (LValueClassField lvalue ident) = do
                 ident = Nothing
             }
 
-            liftIO $ putStrLn $ show cType
             emit $ GEPClass result cType lvalueVar (toInteger index)
             return $ Just result
 getLValue _ = error "todo"
