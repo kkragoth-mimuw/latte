@@ -217,7 +217,6 @@ fillTopDefInformation _ = return ()
 
 fillClassMethodsInformation :: LLVMClass -> GenM ()
 fillClassMethodsInformation llvmClass = do
-    liftIO $ putStrLn $ "filling class method" ++ (show $ llvmClassName llvmClass)
     forM_ (llvmClassMethods llvmClass) (fillMethodInformation llvmClass)
 
 fillMethodInformation :: LLVMClass -> (Ident, ClassPole) -> GenM ()
@@ -856,7 +855,7 @@ compileExpr (ENew type'@(ClassType cIdent)) = do
     let c = fromJust $ Map.lookup cIdent (classes store)
     let size = calculateClassSize (c)
 
-    liftIO $ putStrLn $ printf ("calculated size: %s\n") (show size)
+    -- liftIO $ putStrLn $ printf ("calculated size: %s\n") (show size)
 
     mallocResult <- getNextRegisterCounter
     emit $ Malloc mallocResult size
@@ -982,16 +981,6 @@ compileExpr (EApp (LValueClassField lvalue (Ident ident)) exprs) = do
 
     let args = [thisVar] ++ argsWithoutThis
     let name = Ident (methodClassName ++ "__" ++ ident)
-    liftIO $ putStrLn $ "LValue " ++ (show lvalue)
-    liftIO $ putStrLn $ ""
-    liftIO $ putStrLn $ "LValue Pointer " ++ (show lvalueVarPointer)
-    liftIO $ putStrLn $ ""
-    liftIO $ putStrLn $ "LValue VarLoaded " ++ (show lvalueVarLoaded)
-    liftIO $ putStrLn $ ""
-    liftIO $ putStrLn $ "Trying to access function" ++ (show name)
-    liftIO $ putStrLn $ "Functions " ++ (show (functions store))
-    varsMap <- asks vars
-    liftIO $ putStrLn $ "Variables: " ++ (show (varsMap))
     let func = fromJust $ Map.lookup name (functions store)
     case func of
         (Fun Void _) -> do
@@ -1234,7 +1223,6 @@ getLValue (LValueClassField lvalue ident) = do
             
             classesM <- gets classes
             let classFs = llvmClassFields $ fromJust $ Map.lookup cIdent classesM
-            liftIO $ putStrLn $ "TRYING TO ACCESS " ++ show ident ++ " In " ++ (show cIdent)
             let index = fromJust $ findIndex (\cF -> classFieldName cF == ident) classFs
             let identType = classFieldType $ classFs!!index
 
