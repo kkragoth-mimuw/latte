@@ -141,7 +141,10 @@ nameMangleStmt (While expr stmt) = do
                     [stmt'] -> stmt'
                     _ -> (BStmt (Block stmts))
     return (env, [While expr' stmt'])
-
+nameMangleStmt (SExp expr) = do
+    env <- ask
+    expr' <- nameMangleExpr expr
+    return (env, [SExp expr'])
 
 nameMangleStmt stmt = do
     env <- ask
@@ -179,5 +182,27 @@ nameMangleDeclItem type' (Init ident expr) = do
 
 nameMangleLValue :: LValue -> NMM LValue
 nameMangleLValue lvalue = error "todo"
+
 nameMangleExpr :: Expr -> NMM (Expr)
-nameMangleExpr expr = error "todo"
+nameMangleExpr (ELValue lvalue) = do
+    lvalue' <- nameMangleLValue lvalue
+    return (ELValue lvalue')
+nameMangleExpr (EApp lvalue exprs) = do
+    lvalue' <- nameMangleLValue lvalue
+    exprs' <- mapM nameMangleExpr exprs
+    return (EApp lvalue' exprs')
+nameMangleExpr (Neg expr) = do
+    expr' <- nameMangleExpr expr
+    return (Neg expr')
+nameMangleExpr (Not expr) = do
+    expr' <- nameMangleExpr expr
+    return (Not expr')
+nameMangleExpr (EMul expr1 mulOp expr2) = do
+    expr1' <- nameMangleExpr expr1
+    expr2' <- nameMangleExpr expr2
+    return (EMul expr1' mulOp expr2')
+nameMangleExpr (EAdd expr1 addOp expr2) = do
+    expr1' <- nameMangleExpr expr1
+    expr2' <- nameMangleExpr expr2
+    return (EAdd expr1' addOp expr2')
+nameMangleExpr expr = return expr
