@@ -40,6 +40,13 @@ config = Box({
 
             ],
             "PATH": "tests/stringsmy/"
+        },
+        {
+            "NAME": "MY_OBJECTS",
+            "WHITELIST_TESTS": [
+
+            ],
+            "PATH": "tests/myobjects/"
         }
     ]
 })

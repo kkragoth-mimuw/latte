@@ -1,0 +1,15 @@
+class foo {
+	int bar;
+
+	void printBar(int bar) {
+		printInt(bar);
+		printInt(self.bar);
+	}
+}
+
+int main() {
+	foo f = new foo;
+	f.bar = 3;
+	f.printBar(2);
+	return 0;
+}

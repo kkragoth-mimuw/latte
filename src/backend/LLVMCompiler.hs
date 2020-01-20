@@ -17,7 +17,7 @@ import           Control.Monad.Writer
 
 import qualified Data.Map as Map
 import Data.Maybe (fromJust)
-import Data.List (intercalate, findIndex)
+import Data.List (intercalate, findIndex, find)
 import Text.Printf
 
 import AbsLatte 
@@ -905,32 +905,16 @@ compileExpr(ELitFalse) = do
         blockLabel = blockLabel,
         ident = Nothing
     }
-compileExpr (EApp (LValue name) exprs) = do
-    args <- mapM compileExpr exprs
-    store <- get
-    let func = fromJust $ Map.lookup name (functions store)
-    case func of
-        (Fun Void _) -> do
-            emit (CallVoid name args)
-            return (LLVMVariable {
-                type' = LLVMType Void,
-                address = LLVMAddressVoid,
-                blockLabel = (currentLabel store),
-                ident = Nothing
-            })
-        (Fun type' _) -> do
-            newRegister <- getNextRegisterCounter
-            let resultType = case type' of
-                                    (ClassType _) -> LLVMTypePointer (LLVMType type')
-                                    _ -> LLVMType type'
-            let result = (LLVMVariable {
-                type' = resultType,
-                address = LLVMAddressRegister newRegister,
-                blockLabel = (currentLabel store),
-                ident = Nothing
-            })
-            emit (Call result name args)
-            return result
+compileExpr (EApp lvalue@(LValue name) exprs) = do
+    env <- ask
+    case (currentClass env) of
+        Nothing -> compileEApp lvalue exprs
+        Just thisClass -> do
+            let thisClassMethodIdents = map (\(_, (ClassMethodDef _ ident _ _ )) -> ident) (llvmClassMethods thisClass)
+
+            case find (==name) thisClassMethodIdents of
+                Just _ -> compileExpr (EApp (addThisToLValue lvalue) exprs)
+                Nothing -> compileEApp lvalue exprs
 compileExpr (EApp (LValueClassField lvalue (Ident ident)) exprs) = do
     lvalueVarPointerMaybe <- getLValue lvalue
 
@@ -1371,3 +1355,35 @@ showPredefinedFunctions = (intercalate ("\n") ([
 addThisToLValue :: LValue -> LValue
 addThisToLValue (LValue ident) = LValueClassField (LValue thisIdent) (ident)
 addThisToLValue (LValueClassField lvalue ident) = LValueClassField (addThisToLValue lvalue) (ident)
+
+topIdentLValue :: LValue -> Ident
+topIdentLValue (LValue ident) = ident
+topIdentLValue (LValueClassField lvalue _) = topIdentLValue lvalue
+
+compileEApp :: LValue -> [Expr] -> GenM LLVMVariable
+compileEApp (LValue name) exprs = do
+    args <- mapM compileExpr exprs
+    store <- get
+    let func = fromJust $ Map.lookup name (functions store)
+    case func of
+        (Fun Void _) -> do
+            emit (CallVoid name args)
+            return (LLVMVariable {
+                type' = LLVMType Void,
+                address = LLVMAddressVoid,
+                blockLabel = (currentLabel store),
+                ident = Nothing
+            })
+        (Fun type' _) -> do
+            newRegister <- getNextRegisterCounter
+            let resultType = case type' of
+                                    (ClassType _) -> LLVMTypePointer (LLVMType type')
+                                    _ -> LLVMType type'
+            let result = (LLVMVariable {
+                type' = resultType,
+                address = LLVMAddressRegister newRegister,
+                blockLabel = (currentLabel store),
+                ident = Nothing
+            })
+            emit (Call result name args)
+            return result
