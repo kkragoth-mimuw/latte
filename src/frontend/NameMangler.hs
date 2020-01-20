@@ -94,7 +94,53 @@ nameMangleStmt (Decl type' (x:xs)) = do
     (envX, stmtX) <- nameMangleDeclItem type' x
     (envXS, stmtsXS) <- local (const envX) (nameMangleStmt (Decl type' xs))
     return (envXS, [stmtX] ++ stmtsXS)
-nameMangleStmt (Ass lvalue expr) = error "todo"
+nameMangleStmt (Ass lvalue expr) = do
+    env <- ask
+    lvalue' <- nameMangleLValue lvalue
+    expr' <- nameMangleExpr expr
+    return (env, [Ass lvalue' expr'])
+nameMangleStmt (Incr lvalue) = do
+    env <- ask
+    lvalue' <- nameMangleLValue lvalue
+    return (env, [Incr lvalue'])
+nameMangleStmt (Decr lvalue) = do
+    env <- ask
+    lvalue' <- nameMangleLValue lvalue
+    return (env, [Decr lvalue'])
+nameMangleStmt (Ret expr) = do
+    env <- ask
+    expr' <- nameMangleExpr expr
+    return (env, [Ret expr'])
+nameMangleStmt (VRet) = do
+    env <- ask
+    return (env, [VRet])
+nameMangleStmt (Cond expr stmt) = do
+    env <- ask
+    expr' <- nameMangleExpr expr
+    (_, stmts) <- nameMangleStmt stmt
+    case stmts of
+        [stmt'] -> return (env, [Cond expr' stmt'])
+        _ -> return (env, [Cond expr' (BStmt (Block stmts))])
+nameMangleStmt (CondElse expr stmt1 stmt2) = do
+    env <- ask
+    expr' <- nameMangleExpr expr
+    (_, stmts1) <- nameMangleStmt stmt1
+    (_, stmts2) <- nameMangleStmt stmt2
+    let stmts1' = case stmts1 of
+                    [stmt1'] -> stmt1'
+                    _ -> (BStmt (Block stmts1))
+    let stmts2' = case stmts2 of
+                    [stmt2'] -> stmt2'
+                    _ -> (BStmt (Block stmts2))
+    return (env, [CondElse expr' stmts1' stmts2'])
+nameMangleStmt (While expr stmt) = do
+    env <- ask
+    expr' <- nameMangleExpr expr
+    (_, stmts) <- nameMangleStmt stmt
+    let stmt' = case stmts of
+                    [stmt'] -> stmt'
+                    _ -> (BStmt (Block stmts))
+    return (env, [While expr' stmt'])
 
 
 nameMangleStmt stmt = do
@@ -131,6 +177,7 @@ nameMangleDeclItem type' (Init ident expr) = do
 --     varsMap <- asks vars0
 
 
-
+nameMangleLValue :: LValue -> NMM LValue
+nameMangleLValue lvalue = error "todo"
 nameMangleExpr :: Expr -> NMM (Expr)
 nameMangleExpr expr = error "todo"

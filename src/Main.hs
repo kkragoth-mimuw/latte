@@ -56,9 +56,9 @@ run v p s filePathM = let ts = myLLexer s in case p ts of
                           exitFailure
            Ok  tree ->  do
                         optimizedProgram <- runASTOptimizer tree
-                        -- nameMangledProgram <- runNameMangler optimizedProgram
-                        -- putStrLn $ show nameMangledProgram
-                        -- exitSuccess
+                        nameMangledProgram <- runNameMangler optimizedProgram
+                        putStrLn $ show nameMangledProgram
+                        exitSuccess
                         compilerInfo <- runLLVMCompiler optimizedProgram
                         case compilerInfo of
                           Left error -> do

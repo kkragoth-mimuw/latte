@@ -4,8 +4,10 @@
 -- export PATH=$PATH:/usr/local/opt/llvm/bin/
 
 -- TODO:
--- ENEW -> default variables
--- CAST ON STORE
+-- NameMangler
+-- String comparison
+-- Class methods dont duplicate
+-- Class Typechecker
 
 module LLVMCompiler where
 
@@ -26,7 +28,7 @@ import Utils
 debugPrint = 0
 phiOptimization = 1
 
-thisIdent = (Ident "self") -- Seriously have to check all tests to see this ;_;
+thisIdent = (Ident "self") 
 
 type GenM a = (ExceptT CompilationError (ReaderT Env (StateT Store IO) )) a
 
