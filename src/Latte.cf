@@ -56,7 +56,7 @@ CondElse.  Stmt ::= "if" "(" Expr ")" Stmt "else" Stmt  ;
 
 While.     Stmt ::= "while" "(" Expr ")" Stmt ;
 
-ForArray.      Stmt ::= "for" "(" Type Ident ":" Ident ")" ;
+-- ForArray.      Stmt ::= "for" "(" Type Ident ":" Ident ")" ;
 
 SExp.      Stmt ::= Expr  ";" ;
 
@@ -64,7 +64,7 @@ LValue.    LValue ::= Ident ;
 
 LValueClassField. LValue ::= LValue "." Ident ;
 
-LValueArrayElem. LValue ::= LValue "[" Expr "]" ;
+-- LValueArrayElem. LValue ::= LValue "[" Expr "]" ;
 
 -- Types ---------------------------------------------------
 
@@ -76,7 +76,7 @@ Boolean.      Type ::= "boolean" ;
 
 Void.      Type ::= "void" ;
 
-ArrType.       Type ::= Type "[]";
+-- ArrType.       Type ::= Type "[]";
 
 ClassType. Type ::= Ident ;
 
@@ -99,7 +99,7 @@ EApp.      Expr8 ::= LValue "(" [Expr] ")" ;
 
 EString.   Expr8 ::= String ;
 
-ENewArray. Expr7 ::= "new" Type "[" Expr "]" ;
+-- ENewArray. Expr7 ::= "new" Type "[" Expr "]" ;
 
 ENew.      Expr7 ::= "new" Type ;
 

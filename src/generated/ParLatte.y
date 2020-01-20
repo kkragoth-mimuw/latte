@@ -28,34 +28,29 @@ import ErrM
   '--' { PT _ (TS _ 13) }
   '.' { PT _ (TS _ 14) }
   '/' { PT _ (TS _ 15) }
-  ':' { PT _ (TS _ 16) }
-  ';' { PT _ (TS _ 17) }
-  '<' { PT _ (TS _ 18) }
-  '<=' { PT _ (TS _ 19) }
-  '=' { PT _ (TS _ 20) }
-  '==' { PT _ (TS _ 21) }
-  '>' { PT _ (TS _ 22) }
-  '>=' { PT _ (TS _ 23) }
-  '[' { PT _ (TS _ 24) }
-  '[]' { PT _ (TS _ 25) }
-  ']' { PT _ (TS _ 26) }
-  'boolean' { PT _ (TS _ 27) }
-  'class' { PT _ (TS _ 28) }
-  'else' { PT _ (TS _ 29) }
-  'extends' { PT _ (TS _ 30) }
-  'false' { PT _ (TS _ 31) }
-  'for' { PT _ (TS _ 32) }
-  'if' { PT _ (TS _ 33) }
-  'int' { PT _ (TS _ 34) }
-  'new' { PT _ (TS _ 35) }
-  'return' { PT _ (TS _ 36) }
-  'string' { PT _ (TS _ 37) }
-  'true' { PT _ (TS _ 38) }
-  'void' { PT _ (TS _ 39) }
-  'while' { PT _ (TS _ 40) }
-  '{' { PT _ (TS _ 41) }
-  '||' { PT _ (TS _ 42) }
-  '}' { PT _ (TS _ 43) }
+  ';' { PT _ (TS _ 16) }
+  '<' { PT _ (TS _ 17) }
+  '<=' { PT _ (TS _ 18) }
+  '=' { PT _ (TS _ 19) }
+  '==' { PT _ (TS _ 20) }
+  '>' { PT _ (TS _ 21) }
+  '>=' { PT _ (TS _ 22) }
+  'boolean' { PT _ (TS _ 23) }
+  'class' { PT _ (TS _ 24) }
+  'else' { PT _ (TS _ 25) }
+  'extends' { PT _ (TS _ 26) }
+  'false' { PT _ (TS _ 27) }
+  'if' { PT _ (TS _ 28) }
+  'int' { PT _ (TS _ 29) }
+  'new' { PT _ (TS _ 30) }
+  'return' { PT _ (TS _ 31) }
+  'string' { PT _ (TS _ 32) }
+  'true' { PT _ (TS _ 33) }
+  'void' { PT _ (TS _ 34) }
+  'while' { PT _ (TS _ 35) }
+  '{' { PT _ (TS _ 36) }
+  '||' { PT _ (TS _ 37) }
+  '}' { PT _ (TS _ 38) }
   L_ident  { PT _ (TV $$) }
   L_integ  { PT _ (TI $$) }
   L_quoted { PT _ (TL $$) }
@@ -107,7 +102,6 @@ Stmt : ';' { AbsLatte.Empty }
      | 'if' '(' Expr ')' Stmt { AbsLatte.Cond $3 $5 }
      | 'if' '(' Expr ')' Stmt 'else' Stmt { AbsLatte.CondElse $3 $5 $7 }
      | 'while' '(' Expr ')' Stmt { AbsLatte.While $3 $5 }
-     | 'for' '(' Type Ident ':' Ident ')' { AbsLatte.ForArray $3 $4 $6 }
      | Expr ';' { AbsLatte.SExp $1 }
 Item :: { Item }
 Item : Ident { AbsLatte.NoInit $1 }
@@ -117,13 +111,11 @@ ListItem : Item { (:[]) $1 } | Item ',' ListItem { (:) $1 $3 }
 LValue :: { LValue }
 LValue : Ident { AbsLatte.LValue $1 }
        | LValue '.' Ident { AbsLatte.LValueClassField $1 $3 }
-       | LValue '[' Expr ']' { AbsLatte.LValueArrayElem $1 $3 }
 Type :: { Type }
 Type : 'int' { AbsLatte.Int }
      | 'string' { AbsLatte.Str }
      | 'boolean' { AbsLatte.Boolean }
      | 'void' { AbsLatte.Void }
-     | Type '[]' { AbsLatte.ArrType $1 }
      | Ident { AbsLatte.ClassType $1 }
 ListType :: { [Type] }
 ListType : {- empty -} { [] }
@@ -138,9 +130,7 @@ Expr8 : LValue { AbsLatte.ELValue $1 }
       | String { AbsLatte.EString $1 }
       | '(' Expr ')' { $2 }
 Expr7 :: { Expr }
-Expr7 : 'new' Type '[' Expr ']' { AbsLatte.ENewArray $2 $4 }
-      | 'new' Type { AbsLatte.ENew $2 }
-      | Expr8 { $1 }
+Expr7 : 'new' Type { AbsLatte.ENew $2 } | Expr8 { $1 }
 Expr6 :: { Expr }
 Expr6 : '(' Type ')null' { AbsLatte.ENullCast $2 } | Expr7 { $1 }
 Expr5 :: { Expr }

@@ -43,7 +43,6 @@ transStmt x = case x of
   Cond expr stmt -> failure x
   CondElse expr stmt1 stmt2 -> failure x
   While expr stmt -> failure x
-  ForArray type_ ident1 ident2 -> failure x
   SExp expr -> failure x
 transItem :: Item -> Result
 transItem x = case x of
@@ -53,14 +52,12 @@ transLValue :: LValue -> Result
 transLValue x = case x of
   LValue ident -> failure x
   LValueClassField lvalue ident -> failure x
-  LValueArrayElem lvalue expr -> failure x
 transType :: Type -> Result
 transType x = case x of
   Int -> failure x
   Str -> failure x
   Boolean -> failure x
   Void -> failure x
-  ArrType type_ -> failure x
   ClassType ident -> failure x
   Fun type_ types -> failure x
 transExpr :: Expr -> Result
@@ -71,7 +68,6 @@ transExpr x = case x of
   ELitFalse -> failure x
   EApp lvalue exprs -> failure x
   EString string -> failure x
-  ENewArray type_ expr -> failure x
   ENew type_ -> failure x
   ENullCast type_ -> failure x
   Neg expr -> failure x

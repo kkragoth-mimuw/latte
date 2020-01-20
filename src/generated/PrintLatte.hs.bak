@@ -185,7 +185,7 @@ instance Print [AbsLatte.Type] where
 
 instance Print AbsLatte.Expr where
   prt i e = case e of
-    AbsLatte.EField lvalue -> prPrec i 8 (concatD [prt 0 lvalue])
+    AbsLatte.ELValue lvalue -> prPrec i 8 (concatD [prt 0 lvalue])
     AbsLatte.ELitInt n -> prPrec i 8 (concatD [prt 0 n])
     AbsLatte.ELitTrue -> prPrec i 8 (concatD [doc (showString "true")])
     AbsLatte.ELitFalse -> prPrec i 8 (concatD [doc (showString "false")])

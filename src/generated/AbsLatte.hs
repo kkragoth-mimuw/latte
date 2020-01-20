@@ -37,27 +37,17 @@ data Stmt
     | Cond Expr Stmt
     | CondElse Expr Stmt Stmt
     | While Expr Stmt
-    | ForArray Type Ident Ident
     | SExp Expr
   deriving (Eq, Ord, Show, Read)
 
 data Item = NoInit Ident | Init Ident Expr
   deriving (Eq, Ord, Show, Read)
 
-data LValue
-    = LValue Ident
-    | LValueClassField LValue Ident
-    | LValueArrayElem LValue Expr
+data LValue = LValue Ident | LValueClassField LValue Ident
   deriving (Eq, Ord, Show, Read)
 
 data Type
-    = Int
-    | Str
-    | Boolean
-    | Void
-    | ArrType Type
-    | ClassType Ident
-    | Fun Type [Type]
+    = Int | Str | Boolean | Void | ClassType Ident | Fun Type [Type]
   deriving (Eq, Ord, Show, Read)
 
 data Expr
@@ -67,7 +57,6 @@ data Expr
     | ELitFalse
     | EApp LValue [Expr]
     | EString String
-    | ENewArray Type Expr
     | ENew Type
     | ENullCast Type
     | Neg Expr

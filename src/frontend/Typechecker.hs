@@ -89,7 +89,7 @@ prettyShowType type_ = case type_ of
     Str   -> "string"
     Boolean  -> "Boolean"
     Void  -> "void"
-    (ClassType (Ident c) -> "class " ++ c
+    ClassType (Ident c) -> "class " ++ c
 
 trimLeft :: String -> String
 trimLeft = dropWhile isSpace
@@ -231,14 +231,22 @@ typecheckDecl (Decl type' (item:items)) = do
 
 typecheckDeclItem :: Type -> Item -> TCM TCEnv
 typecheckDeclItem type' (Init ident expr) = do
+    env <- ask
     exprType <- typecheckExpr expr
+
+    -- todo check if type class in classes
 
     checkIfIsAlreadyDeclaredATCurrentLevel ident
 
-    when (type' /= exprType)
-        (throwError $ initTypecheckError $ TCInvalidTypeExpectedType exprType type')
+    case (type', exprType) of
+        (ClassType lIdent, ClassType rIdent) | lIdent == rIdent -> return ()
+        (ClassType lIdent, ClassType rIdent) -> do
+                                isDerived <- checkIfClassExtends lIdent rIdent
+                                unless (isDerived)
+                                    (throwError $ initTypecheckError $ TCErrorMessage ("Class " ++ (show rIdent) ++ " doesn't derive from class " ++ (show lIdent)))
+        (l, r) -> do when (l /= r)
+                        (throwError $ initTypecheckError $ TCInvalidTypeExpectedType exprType type')
 
-    env <- ask
 
     let updatedTypesMap = Map.insert ident (type', level env) (typesMap env)
 
@@ -256,6 +264,19 @@ typecheckDeclItem type' (NoInit ident) = do
 typecheckStmtWithLogging :: Stmt -> TCM ()
 typecheckStmtWithLogging stmt = typecheckStmt stmt `catchError` (\typecheckError -> throwError (appendLogToTypecheckError typecheckError stmt))
 
+
+checkIfClassExtends :: Ident -> Ident -> TCM Bool
+checkIfClassExtends baseClassIdent derivedClassIdent = do
+    classesMap <- asks classes
+
+    case (Map.lookup derivedClassIdent classesMap) of
+        Nothing -> throwError $ initTypecheckError $ TCErrorMessage ("Class not in scope")
+        Just derivedClass -> case (baseClassName derivedClass) of
+                                Nothing -> return False
+                                (Just baseClassForThisDerivedClass) | baseClassForThisDerivedClass == baseClassIdent -> return True
+                                (Just baseClassForThisDerivedClass) -> checkIfClassExtends baseClassIdent baseClassForThisDerivedClass
+
+
 typecheckStmt :: Stmt -> TCM ()
 typecheckStmt Empty = return ()
 typecheckStmt (BStmt (Block stmts)) = local increaseLevel (typecheckStmts stmts)
@@ -263,8 +284,14 @@ typecheckStmt (Ass lvalue expr) = do
     lvalueType <- extractLValueType lvalue
     rvalueType <- typecheckExpr expr
 
-    when (lvalueType /= rvalueType)
-        (throwError $ initTypecheckError $ TCInvalidTypeExpectedType rvalueType lvalueType)
+    case (lvalueType, rvalueType) of
+        (ClassType lIdent, ClassType rIdent) | lIdent == rIdent -> return ()
+        (ClassType lIdent, ClassType rIdent) -> do
+                                isDerived <- checkIfClassExtends lIdent rIdent
+                                unless (isDerived)
+                                    (throwError $ initTypecheckError $ TCErrorMessage ("Class " ++ (show rIdent) ++ " doesn't derive from class " ++ (show lIdent)))
+        (l, r) -> do when (lvalueType /= rvalueType)
+                        (throwError $ initTypecheckError $ TCInvalidTypeExpectedType rvalueType lvalueType)
 
 typecheckStmt (Incr lvalue) = do
     lvalueType <- extractLValueType lvalue
@@ -324,10 +351,32 @@ typecheckExprWithErrorLogging :: Expr -> TCM Type
 typecheckExprWithErrorLogging expr = typecheckExpr expr `catchError` (\typecheckError -> throwError (appendLogToTypecheckError typecheckError expr))
 
 typecheckExpr :: Expr -> TCM Type
-typecheckExpr (EString _) = return Str
+typecheckExpr (ELValue lvalue) = do
+    type' <- extractLValueType lvalue
+    return type'
 typecheckExpr (ELitInt i) = if (i > 2147483647 || i < -2147483648) then (throwError $ initTypecheckError $ TCLiteralOverflow i) else return Int
 typecheckExpr (ELitTrue) = return Boolean
 typecheckExpr (ELitFalse) = return Boolean
+typecheckExpr (EApp (LValue name) exprs) = do
+    funcType <- extractVariableType name
+    typecheckFuncApplication funcType exprs
+typecheckExpr(EApp (LValueClassField lvalue (Ident ident)) exprs) = do
+    classType <- extractLValueType lvalue
+    case classType of
+        (ClassType (Ident cName)) -> do
+            let name = Ident (cName ++ "__" ++ ident)
+            funcType <- extractVariableType name
+            typecheckFuncApplication funcType exprs
+        _ -> throwError $ initTypecheckError $ TCErrorMessage "LValue not a class"
+typecheckExpr (ENew type') = do
+    case type' of
+        (ClassType ident) -> return type'
+        _ -> throwError $ initTypecheckError $ TCErrorMessage "Trying to instantiate nonclass"
+typecheckExpr (ENullCast type') = do
+    case type' of
+        (ClassType ident) -> return type'
+        _ -> throwError $ initTypecheckError $ TCErrorMessage "Casting null on nonclass"   
+typecheckExpr (EString _) = return Str
 typecheckExpr (EOr expr1 expr2) = do
     (left, right) <- typecheckExpr2 expr1 expr2
     case (left, right) of
@@ -374,34 +423,55 @@ typecheckExpr(EAdd expr1 addop expr2) = do
         (Str, x, Plus)   -> throwError $ initTypecheckError $ TCInvalidTypeExpectedType x Str
         (Int, x, _)      -> throwError $ initTypecheckError $ TCInvalidTypeExpectedType x Int
         (x, _, _)        -> throwError $ initTypecheckError $ TCInvalidTypeExpectedTypes x [Int, Str]
-typecheckExpr(EApp lvalue exprs) = do
-    name <- getFuncNameFromLValue lvalue
-    funcType <- extractVariableType name
-    typecheckFuncApplication funcType exprs
-typecheckExpr (ELValue lvalue) = do
-    type' <- extractLValueType lvalue
-    return type'
+
+
+typecheckExpr expr = error ("Trying to process " ++ (show expr))
 getFuncNameFromLValue :: LValue -> TCM Ident
 getFuncNameFromLValue  (LValue ident) = do
     return ident
-getFuncNameFromLValue  _ = error "todo"
+getFuncNameFromLValue  _ = error "func name from lvalue"
 
 extractLValueType :: LValue -> TCM Type
-extractLValueType (LValue ident) = do
-    extractVariableType ident
-extractLValueType (LValueClassField lvalue ident) = do
-    cType <- extractLValueType lvalue
+extractLValueType lvalue = do
+    env <- ask
+
+    extractedLValueType <- extractLValueTypeOperation lvalue
+    extracetedLValueThisType <- extractLValueTypeOperation (addThisToLValue lvalue)
+
+    case (currentClass env) of
+        Nothing -> do
+            case extractedLValueType of
+                        Right type' -> return type'
+                        Left error ->  throwError $ initTypecheckError $ error 
+        (Just c) -> case extracetedLValueThisType of
+                        Right type' -> return type' 
+                        Left _ -> case extractedLValueType of
+                                        Right type' -> return type'
+                                        Left error ->  throwError $ initTypecheckError $ error 
+
+extractLValueTypeOperation :: LValue -> TCM (Either TypecheckError Type)
+extractLValueTypeOperation (LValue ident) = do
+    env <- ask
+    case (Map.lookup ident $ typesMap env) of
+        Just (type', _) -> return $ Right type'
+        Nothing -> return $ Left (TCUndeclaredVariable ident)
+extractLValueTypeOperation (LValueClassField lvalue ident) = do
+    cType <- extractLValueTypeOperation lvalue
     case cType of
-        ClassType cIdent -> do
+        Left error -> return $ Left error
+        Right (ClassType cIdent) -> do
             env <- ask
             case Map.lookup (cIdent) (classes env) of
-                Nothing -> throwError $ initTypecheckError $ TCUndeclaredClass cIdent
+                Nothing -> return $ Left (TCUndeclaredClass cIdent)
                 Just c -> case find (\(ClassFieldDef _ cFieldIdent)  -> cFieldIdent == ident) (classFields c) of
                     Nothing -> throwError $ initTypecheckError $ TCClassDoesntHaveField (cIdent) (ident)
-                    Just (ClassFieldDef classFieldType _) -> return classFieldType
-        _ ->  throwError $ initTypecheckError $ TCAccessOnNonClass 
-extractLValueType _ = error "TODO"
+                    Just (ClassFieldDef classFieldType _) -> return $ Right classFieldType
+        _ ->  return $ Left TCAccessOnNonClass 
 
+thisIdent = (Ident "self") 
+addThisToLValue :: LValue -> LValue
+addThisToLValue (LValue ident) = LValueClassField (LValue thisIdent) (ident)
+addThisToLValue (LValueClassField lvalue ident) = LValueClassField (addThisToLValue lvalue) (ident)
 
 typecheckFuncApplication :: Type -> [Expr] -> TCM Type
 typecheckFuncApplication (Fun returnType argTypes) exprs = do
@@ -463,6 +533,7 @@ data TypecheckError = TCInvalidTypeExpectedType Type Type
                     | TCAccessOnNonClass
                     | TCUndeclaredClass Ident
                     | TCClassDoesntHaveField Ident Ident
+                    | TCErrorMessage String
                     | TCDebug String
 
 instance Show TypecheckError where
@@ -475,6 +546,7 @@ instance Show TypecheckError where
     show TCNotLValue                                     = "Not lvalue"
     show TCInvalidNumberOfArguments                      = "Passed invalid number of arguments to function"
     show (TCDebug str)                                   = printf "%s" (show str)
+    show (TCErrorMessage str)                            = printf "%s" (show str)
     show TCReturn                                        = "return error"
     show TCNoMain                                        = "Program has no main function"
     show (TCLiteralOverflow i)                           = printf "Constant %s is too large" (show i)

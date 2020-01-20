@@ -61,7 +61,7 @@ data Type
   deriving (Eq, Ord, Show, Read)
 
 data Expr
-    = EField LValue
+    = ELValue LValue
     | ELitInt Integer
     | ELitTrue
     | ELitFalse

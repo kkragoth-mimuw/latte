@@ -85,8 +85,8 @@ All other symbols are terminals.
   |  |  **|**  | ``while`` ``(`` //Expr// ``)`` //Stmt//
   |  |  **|**  | ``for`` ``(`` //Type// //Ident// ``:`` //Ident// ``)``
   |  |  **|**  | //Expr// ``;``
-  | //Item// | -> | //LValue//
-  |  |  **|**  | //LValue// ``=`` //Expr//
+  | //Item// | -> | //Ident//
+  |  |  **|**  | //Ident// ``=`` //Expr//
   | //[Item]// | -> | //Item//
   |  |  **|**  | //Item// ``,`` //[Item]//
   | //LValue// | -> | //Ident//

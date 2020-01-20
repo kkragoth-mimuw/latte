@@ -146,7 +146,6 @@ instance Print AbsLatte.Stmt where
     AbsLatte.Cond expr stmt -> prPrec i 0 (concatD [doc (showString "if"), doc (showString "("), prt 0 expr, doc (showString ")"), prt 0 stmt])
     AbsLatte.CondElse expr stmt1 stmt2 -> prPrec i 0 (concatD [doc (showString "if"), doc (showString "("), prt 0 expr, doc (showString ")"), prt 0 stmt1, doc (showString "else"), prt 0 stmt2])
     AbsLatte.While expr stmt -> prPrec i 0 (concatD [doc (showString "while"), doc (showString "("), prt 0 expr, doc (showString ")"), prt 0 stmt])
-    AbsLatte.ForArray type_ id1 id2 -> prPrec i 0 (concatD [doc (showString "for"), doc (showString "("), prt 0 type_, prt 0 id1, doc (showString ":"), prt 0 id2, doc (showString ")")])
     AbsLatte.SExp expr -> prPrec i 0 (concatD [prt 0 expr, doc (showString ";")])
   prtList _ [] = concatD []
   prtList _ (x:xs) = concatD [prt 0 x, prt 0 xs]
@@ -165,7 +164,6 @@ instance Print AbsLatte.LValue where
   prt i e = case e of
     AbsLatte.LValue id -> prPrec i 0 (concatD [prt 0 id])
     AbsLatte.LValueClassField lvalue id -> prPrec i 0 (concatD [prt 0 lvalue, doc (showString "."), prt 0 id])
-    AbsLatte.LValueArrayElem lvalue expr -> prPrec i 0 (concatD [prt 0 lvalue, doc (showString "["), prt 0 expr, doc (showString "]")])
 
 instance Print AbsLatte.Type where
   prt i e = case e of
@@ -173,7 +171,6 @@ instance Print AbsLatte.Type where
     AbsLatte.Str -> prPrec i 0 (concatD [doc (showString "string")])
     AbsLatte.Boolean -> prPrec i 0 (concatD [doc (showString "boolean")])
     AbsLatte.Void -> prPrec i 0 (concatD [doc (showString "void")])
-    AbsLatte.ArrType type_ -> prPrec i 0 (concatD [prt 0 type_, doc (showString "[]")])
     AbsLatte.ClassType id -> prPrec i 0 (concatD [prt 0 id])
     AbsLatte.Fun type_ types -> prPrec i 0 (concatD [prt 0 type_, doc (showString "("), prt 0 types, doc (showString ")")])
   prtList _ [] = concatD []
@@ -191,7 +188,6 @@ instance Print AbsLatte.Expr where
     AbsLatte.ELitFalse -> prPrec i 8 (concatD [doc (showString "false")])
     AbsLatte.EApp lvalue exprs -> prPrec i 8 (concatD [prt 0 lvalue, doc (showString "("), prt 0 exprs, doc (showString ")")])
     AbsLatte.EString str -> prPrec i 8 (concatD [prt 0 str])
-    AbsLatte.ENewArray type_ expr -> prPrec i 7 (concatD [doc (showString "new"), prt 0 type_, doc (showString "["), prt 0 expr, doc (showString "]")])
     AbsLatte.ENew type_ -> prPrec i 7 (concatD [doc (showString "new"), prt 0 type_])
     AbsLatte.ENullCast type_ -> prPrec i 6 (concatD [doc (showString "("), prt 0 type_, doc (showString ")null")])
     AbsLatte.Neg expr -> prPrec i 5 (concatD [doc (showString "-"), prt 6 expr])
