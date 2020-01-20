@@ -8,9 +8,10 @@ import AbsLatte
 -- Class 
 type ClassMap = Map.Map Ident Class
 data Class = Class {
+    baseClassName :: Maybe Ident,
     className :: Ident,
     classFields :: [ClassPole],
-    classMethods :: [ClassPole]
+    classMethods :: [(Ident, ClassPole)]
 }
 
 -- DFS Class ext
@@ -44,21 +45,23 @@ classMapFromTopDefs ((_):xs) cM m = classMapFromTopDefs xs cM m
 
 classFromPoles :: Ident -> [ClassPole] -> Class
 classFromPoles ident classPoles = Class {
+    baseClassName = Nothing,
     className = ident,
     classFields = ( filter (\cp -> case cp of 
                                         (ClassFieldDef _ _) -> True 
                                         _ -> False
                             ) classPoles 
                     ),
-    classMethods = ( filter (\cp -> case cp of 
-                                        (ClassMethodDef _ _ _ _) -> True 
-                                        _ -> False
-                            ) classPoles 
-                    )
+    classMethods = map (\classPole -> (ident, classPole)) ( filter (\cp -> case cp of 
+                                            (ClassMethodDef _ _ _ _) -> True 
+                                            _ -> False
+                                ) classPoles 
+                        )
 }
 
 extendClass :: Class -> Class -> Class
 extendClass baseClass derivedClass = Class {
+    baseClassName = Just (className baseClass),
     className = className derivedClass,
     classFields = (classFields baseClass) ++ (classFields derivedClass),
     classMethods = (classMethods baseClass) ++ (classMethods derivedClass)

@@ -4,7 +4,6 @@
 -- export PATH=$PATH:/usr/local/opt/llvm/bin/
 
 -- TODO:
--- NameMangler
 -- String comparison
 -- Class methods dont duplicate
 -- Class Typechecker
@@ -158,7 +157,7 @@ data LLVMVariable = LLVMVariable {
 data LLVMClass = LLVMClass {
     llvmClassName :: Ident,
     llvmClassFields :: [LLVMClassField],
-    llvmClassMethods :: [ClassPole]
+    llvmClassMethods :: [(Ident, ClassPole)]
 } deriving (Show)
 
 data LLVMClassField = LLVMClassField {
@@ -220,12 +219,14 @@ fillClassMethodsInformation llvmClass = do
     liftIO $ putStrLn $ "filling class method" ++ (show $ llvmClassName llvmClass)
     forM_ (llvmClassMethods llvmClass) (fillMethodInformation llvmClass)
 
-fillMethodInformation :: LLVMClass -> ClassPole -> GenM ()
-fillMethodInformation c m@(ClassMethodDef _ _ _ _) = do
-    let (FnDef type' ident args _) = methodToFunctionConverter c m
-    modify (\store -> store {
-        functions = Map.insert ident (Fun type' (map (\(Arg t _) -> t) args)) (functions store)
-    })
+fillMethodInformation :: LLVMClass -> (Ident, ClassPole) -> GenM ()
+fillMethodInformation c (methodClass, m@(ClassMethodDef _ _ _ _)) = do
+    if ((llvmClassName c) == methodClass) then do
+        let (FnDef type' ident args _) = methodToFunctionConverter c m
+        modify (\store -> store {
+            functions = Map.insert ident (Fun type' (map (\(Arg t _) -> t) args)) (functions store)
+        })
+    else return ()
 fillMethodInformation _ _ = return ()
 
 emit :: LLVMInstruction -> GenM ()
@@ -271,18 +272,20 @@ compileMethods = do
     result <- mapM (\c -> compileMethodDefs c (llvmClassMethods c)) classesList
     return $ intercalate ("\n") result
 
-compileMethodDefs :: LLVMClass -> [ClassPole] -> GenM String
+compileMethodDefs :: LLVMClass -> [(Ident, ClassPole)] -> GenM String
 compileMethodDefs c [] = return ""
 compileMethodDefs c (x:xs) = do
     result <- compileMethodDef c x
     result2 <- compileMethodDefs c xs
     return (result ++ result2)
 
-compileMethodDef :: LLVMClass -> ClassPole -> GenM String
-compileMethodDef c classMethod = do
-    let fnDef = methodToFunctionConverter c classMethod
+compileMethodDef :: LLVMClass -> (Ident, ClassPole) -> GenM String
+compileMethodDef c (cIdent, classMethod) = do
+    if (llvmClassName c == cIdent) then do
+        let fnDef = methodToFunctionConverter c classMethod
 
-    local (\env -> env { currentClass = Just c} ) (compileFnDef (fnDef))
+        local (\env -> env { currentClass = Just c} ) (compileFnDef (fnDef))
+    else return ""
 
 methodToFunctionConverter :: LLVMClass -> ClassPole -> TopDef
 methodToFunctionConverter c (ClassMethodDef returnType (Ident methodName) args block) =
@@ -956,7 +959,10 @@ compileExpr (EApp (LValueClassField lvalue (Ident ident)) exprs) = do
     let (LLVMTypePointer (LLVMType (ClassType (Ident cIdent)))) = type' lvalueVarLoaded
 
     let name = Ident (cIdent ++ "__" ++ ident)
-
+    liftIO $ putStrLn $ "Trying to access function" ++ (show name)
+    liftIO $ putStrLn $ "Functions " ++ (show (functions store))
+    varsMap <- asks vars
+    liftIO $ putStrLn $ "Variables: " ++ (show (varsMap))
     let func = fromJust $ Map.lookup name (functions store)
     case func of
         (Fun Void _) -> do

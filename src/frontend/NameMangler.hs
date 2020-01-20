@@ -11,6 +11,8 @@ import AbsLatte
 
 type NMM a = (ReaderT Env (StateT Store IO)) a
 
+thisIdent = (Ident "self") 
+
 runNameMangler :: (NameMangleable program) => program -> IO Program
 runNameMangler program = do
     (res, store) <- runStateT (runReaderT (nameMangle program) initEnv) initStore
@@ -59,7 +61,7 @@ showType :: Type -> String
 showType Int = "i"
 showType Str = "str"
 showType Boolean = "b"
-showType (ClassType (Ident cIdent)) = "class_cIdent"
+showType (ClassType (Ident cIdent)) = "class_" ++ cIdent
 
 instance NameMangleable Program where
     nameMangle (Program topdefs) = do
