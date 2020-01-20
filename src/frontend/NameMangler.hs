@@ -73,6 +73,17 @@ nameMangleTopDef (FnDef fnType ident args block@(Block stmts)) = do
     -- todo: functionVariables to decls
     return $ FnDef fnType ident args (Block (functionVariablesDeclarations ++ nameMangledStmts))
 
+nameMangleTopDef (ClassDef ident classPoles) = do
+    classPoles' <- mapM nameMangleClassPole classPoles
+    return (ClassDef ident classPoles')
+nameMangleTopDef (ClassDefExt ident baseIdent classPoles) = do
+    classPoles' <- mapM nameMangleClassPole classPoles
+    return (ClassDefExt ident baseIdent classPoles')
+
+nameMangleClassPole :: ClassPole -> NMM ClassPole
+-- nameMangleClassPole (ClassMethodDef type' ident args block) = do
+nameMangleClassPole c = return c
+
 nameMangleStmts :: [Stmt] -> NMM (Env, [Stmt])
 nameMangleStmts [] = do
     env <- ask
@@ -181,6 +192,15 @@ nameMangleDeclItem type' (Init ident expr) = do
 
 
 nameMangleLValue :: LValue -> NMM LValue
+nameMangleLValue (LValue ident) = do
+    varsMap <- asks vars
+    case Map.lookup ident varsMap of
+        Nothing -> return (LValue ident) -- probably this.
+        Just varInfo -> return (LValue (Ident (nameMangleVariableInfo varInfo)))
+
+nameMangleLValue (LValueClassField lvalue ident) = do
+    lvalue' <- nameMangleLValue lvalue
+    return (LValueClassField lvalue' ident)
 nameMangleLValue lvalue = error "todo"
 
 nameMangleExpr :: Expr -> NMM (Expr)
