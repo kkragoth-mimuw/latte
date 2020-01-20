@@ -4,10 +4,9 @@
 -- export PATH=$PATH:/usr/local/opt/llvm/bin/
 
 -- TODO:
--- String comparison
--- Class methods dont duplicate
 -- Class Typechecker
--- Return checker
+-- Priority of self.foo instead of foo
+-- Debug
 
 module LLVMCompiler where
 
@@ -26,7 +25,6 @@ import AbsLatte
 import Utils
 
 debugPrint = 0
-phiOptimization = 1
 
 thisIdent = (Ident "self") 
 

@@ -9,54 +9,32 @@ import Data.List
 import Data.Bool
 import Text.Printf
 
-import System.IO.Unsafe (unsafePerformIO)
+import System.IO.Unsafe (unsafePerformIO) -- only debug
 
 import AbsLatte
 import PrintLatte
 
-
+import Utils
 
 type TCM a = (ExceptT TypecheckErrorWithLogging (Reader TCEnv)) a
 
 data TCEnv = TCEnv {
     typesMap :: Map.Map Ident (Type, Integer),
-    classes :: Map.Map Ident TCClass,
+    classes :: Map.Map Ident Class,
     level :: Integer,
     currentFunctionReturnType :: Maybe Type,
-    currentClass :: Maybe TCClass
+    currentClass :: Maybe Class,
+    classesCheckForDuplicates :: S.Set Ident
 }
 
 initTCEnv = TCEnv {
-    typesMap = Map.fromList [
-        (Ident "printInt", ((Fun Void ([Int])), -1)),
-        (Ident "printString", ((Fun Void ([Str])), -1)),
-        (Ident "error", ((Fun Void []), -1)),
-        (Ident "readInt", ((Fun Int []), -1)),
-        (Ident "readString", ((Fun Str []), -1))    
-    ],
+    typesMap = initTypesMap,
     classes = Map.empty,
     level = 0,
     currentFunctionReturnType = Nothing,
-    currentClass = Nothing
+    currentClass = Nothing,
+    classesCheckForDuplicates = S.empty
 }
-
-data TCClass = TCClass {
-    className :: Ident,
-    classFields :: [ClassField],
-    classMethods :: [ClassMethod]
-} deriving (Show)
-
-data ClassField = ClassField {
-    classFieldName :: Ident,
-    classFieldType :: Type
-} deriving (Show)
-
-data ClassMethod = ClassMethod {
-    classMethodName :: Ident,
-    classMethodArgs :: [Arg],
-    classMethodBlock :: Block,
-    classMethodReturnType :: Type
-} deriving (Show)
 
 updateEnv :: Arg -> TCEnv -> TCEnv
 updateEnv (Arg type' ident) env = env { typesMap = updatedTypesMap }
@@ -85,51 +63,6 @@ increaseLevel env = env { level = (level env) + 1}
 
 indicateReturnType :: TCEnv -> Type -> TCEnv
 indicateReturnType env type' = env { currentFunctionReturnType = Just (type') }
-
-data TypecheckError = TCInvalidTypeExpectedType Type Type
-                    | TCInvalidTypeExpectedTypes Type [Type]
-                    | TCInvalidFunctionAppTypes [Type] [Type]
-                    | TCInvalidNumberOfArguments
-                    | TCUndeclaredVariable Ident
-                    | TCNoMain 
-                    | TCNotLValue
-                    | TCRedeclaration Ident
-                    | TCFunctionRedeclaration Ident
-                    | TCReturn
-                    | TCMainInvalidArgs
-                    | TCMainInvalidReturnType
-                    | TCLiteralOverflow Integer
-                    | TCRepeatedArguments Ident
-                    | TCVoidArgument Ident
-                    | TCVoidType Ident
-                    | TCClassRedeclaration Ident
-                    | TCAccessOnNonClass
-                    | TCUndeclaredClass Ident
-                    | TCClassDoesntHaveField Ident Ident
-                    | TCDebug String
-
-instance Show TypecheckError where
-    show (TCInvalidTypeExpectedType type' allowedType)   = printf "Invalid type: %s. Expected: %s" (prettyShowType type') (prettyShowType allowedType)
-    show (TCInvalidTypeExpectedTypes type' allowedTypes) = printf "Invalid type: %s. Expected %s" (prettyShowType type') (intercalate " or " (map prettyShowType allowedTypes))
-    show (TCRedeclaration (Ident ident))                 = printf "Tried to redeclare: %s" (show ident)
-    show (TCFunctionRedeclaration (Ident ident))         = printf "Tried to redeclare function: %s" (show ident)
-    show (TCMainInvalidArgs)                             = "Main shouldn't take any arguments!"
-    show (TCMainInvalidReturnType)                       = "Main should only return int"
-    show TCNotLValue                                     = "Not lvalue"
-    show TCInvalidNumberOfArguments                      = "Passed invalid number of arguments to function"
-    show (TCDebug str)                                   = printf "%s" (show str)
-    show TCReturn                                        = "return error"
-    show TCNoMain                                        = "Program has no main function"
-    show (TCLiteralOverflow i)                           = printf "Constant %s is too large" (show i)
-    show (TCUndeclaredVariable (Ident ident))            = printf "Use of undeclared variable %s" (show ident)
-    show (TCRepeatedArguments (Ident ident))             = printf ("Function %s has repeated arguments") (show ident)
-    show (TCVoidArgument (Ident ident))                  = printf ("Argument of function %s has invalid type void") (show ident)
-    show (TCVoidType (Ident ident))                      = printf ("Tried to declare %s as void") (show ident)
-    show (TCClassRedeclaration (Ident ident))            = printf ("Tried to redeclare class %s") (show ident)
-    show (TCAccessOnNonClass)                            = printf ("Tried to access member of type which isn't class")
-    show (TCUndeclaredClass (Ident ident))               = printf ("Non existing class %s") (show ident)
-    show (TCClassDoesntHaveField (Ident c) (Ident f))    = printf ("Class %s doesn't have field %s") (show c) (show f)
-    show _ = ""
 
 data TypecheckErrorWithLogging = TypecheckErrorWithLogging TypecheckError Integer [String] deriving (Show)
 
@@ -176,9 +109,13 @@ class Typecheckable f where
 
 instance Typecheckable Program where
     typecheckProgram (Program topdefs) = do
-        env <- fillTopDefsInformation topdefs
-        local (const env) (mapM_ typecheckTopDef topdefs)
-        local (const env) typecheckMainBlock
+        env <- ask
+        let classesMap = createClassMapFromTopDefs topdefs
+        let newEnv = env { classes = classesMap }
+
+        newEnv <- local (env) (fillTopDefsInformation topdefs)
+        local (const newEnv) (mapM_ typecheckTopDef topdefs)
+        local (const newEnv) typecheckMainBlock
         return ()
 
 fillTopDefsInformation :: [TopDef] -> TCM TCEnv
@@ -199,67 +136,37 @@ fillTopDefsInformation ((FnDef fnType (Ident fnNameNotNormalized) args (Block st
 
 fillTopDefsInformation ((ClassDef cName classPoles):xs) = do
     env <- fillTopDefsInformation xs
-
-    case Map.lookup cName (classes env) of
-        Just _ -> throwError $ initTypecheckError $ TCClassRedeclaration cName
-        Nothing -> do
-            let fields = filter (\classPole -> case classPole of 
-                        (ClassFieldDef _ _) -> True
-                        _ -> False
-                    ) classPoles
-
-            -- TODO TYPES VOID, NAMES NO REPEAT
-            let methods = filter (\classPole -> case classPole of 
-                        (ClassMethodDef _ _ _ _) -> True
-                        _ -> False
-                    ) classPoles
-
-            let cFields = map (\(ClassFieldDef type' ident') -> ClassField {
-                            classFieldName = ident',
-                            classFieldType = type'
-                        }
-                    ) fields
-
-            let cMethods = map (\(ClassMethodDef type' ident' args block) -> ClassMethod {
-                classMethodName = ident',
-                classMethodArgs = args,
-                classMethodBlock = block,
-                classMethodReturnType = type'
-            }) methods
-
-            let classDef = TCClass {
-                className = cName,
-                classFields = cFields,
-                classMethods = cMethods
-            }
-
-            let newEnv = env {
-                classes = Map.insert cName classDef (classes env)
-            }
-
-            return newEnv
-
-typecheckAllMethods :: TCM ()
-typecheckAllMethods = do
-    classesMap <- asks classes
+    case S.member cName (classesCheckForDuplicates env) of
+        True -> throwError $ initTypecheckError $ TCClassRedeclaration cName
+        False -> return env { classesCheckForDuplicates = S.insert cName (classesCheckForDuplicates env)}
+fillTopDefsInformation ((ClassDefExt cName bName _):xs) = do
+    env <- fillTopDefsInformation xs
+    case Map.lookup (bName) (classes env) of
+        Nothing -> throwError $ initTypecheckError $ TCUndeclaredClass bName
+        Just _ ->  case S.member cName (classesCheckForDuplicates env) of
+                True -> throwError $ initTypecheckError $ TCClassRedeclaration cName
+                False -> return env { classesCheckForDuplicates = S.insert cName (classesCheckForDuplicates env)}
+-- typecheckAllMethods :: TCM ()
+-- typecheckAllMethods = do
+--     classesMap <- asks classes
     
-    forM_ (Map.elems classesMap) typecheckClassMethods 
+--     forM_ (Map.elems classesMap) typecheckClassMethods 
 
-typecheckClassMethods :: TCClass -> TCM ()
-typecheckClassMethods c = do
-    env <- ask
-    let newEnv = env { currentClass = Just c }
+-- typecheckClassMethods :: Class -> TCM ()
+-- typecheckClassMethods c = do
+--     env <- ask
+--     let newEnv = env { currentClass = Just c }
 
-    forM_ (classMethods c) (\classMethod -> 
-                local (const newEnv) (
-                        typecheckTopDef (FnDef 
-                            (classMethodReturnType classMethod)
-                            (classMethodName classMethod)
-                            (classMethodArgs classMethod)
-                            (classMethodBlock classMethod)
-                        )
-                )
-        )
+--     forM_ (classMethods c) (\classMethod -> 
+--                 local (const newEnv) (
+--                         typecheckTopDef (FnDef 
+--                             (classMethodReturnType classMethod)
+--                             (classMethodName classMethod)
+--                             (classMethodArgs classMethod)
+--                             (classMethodBlock classMethod)
+--                         )
+--                 )
+--         )
 
 typecheckMainBlock :: TCM ()
 typecheckMainBlock = do
@@ -530,3 +437,56 @@ allUnique xs = foldr go (\s -> s `seq` True) xs S.empty
         go x k s
             | S.member x s = False
             | otherwise = k $! S.insert x s
+
+initTypesMap = Map.fromList [
+        (Ident "printInt", ((Fun Void ([Int])), -1)),
+        (Ident "printString", ((Fun Void ([Str])), -1)),
+        (Ident "error", ((Fun Void []), -1)),
+        (Ident "readInt", ((Fun Int []), -1)),
+        (Ident "readString", ((Fun Str []), -1))    
+    ]
+
+data TypecheckError = TCInvalidTypeExpectedType Type Type
+                    | TCInvalidTypeExpectedTypes Type [Type]
+                    | TCInvalidFunctionAppTypes [Type] [Type]
+                    | TCInvalidNumberOfArguments
+                    | TCUndeclaredVariable Ident
+                    | TCNoMain 
+                    | TCNotLValue
+                    | TCRedeclaration Ident
+                    | TCFunctionRedeclaration Ident
+                    | TCReturn
+                    | TCMainInvalidArgs
+                    | TCMainInvalidReturnType
+                    | TCLiteralOverflow Integer
+                    | TCRepeatedArguments Ident
+                    | TCVoidArgument Ident
+                    | TCVoidType Ident
+                    | TCClassRedeclaration Ident
+                    | TCAccessOnNonClass
+                    | TCUndeclaredClass Ident
+                    | TCClassDoesntHaveField Ident Ident
+                    | TCDebug String
+
+instance Show TypecheckError where
+    show (TCInvalidTypeExpectedType type' allowedType)   = printf "Invalid type: %s. Expected: %s" (prettyShowType type') (prettyShowType allowedType)
+    show (TCInvalidTypeExpectedTypes type' allowedTypes) = printf "Invalid type: %s. Expected %s" (prettyShowType type') (intercalate " or " (map prettyShowType allowedTypes))
+    show (TCRedeclaration (Ident ident))                 = printf "Tried to redeclare: %s" (show ident)
+    show (TCFunctionRedeclaration (Ident ident))         = printf "Tried to redeclare function: %s" (show ident)
+    show (TCMainInvalidArgs)                             = "Main shouldn't take any arguments!"
+    show (TCMainInvalidReturnType)                       = "Main should only return int"
+    show TCNotLValue                                     = "Not lvalue"
+    show TCInvalidNumberOfArguments                      = "Passed invalid number of arguments to function"
+    show (TCDebug str)                                   = printf "%s" (show str)
+    show TCReturn                                        = "return error"
+    show TCNoMain                                        = "Program has no main function"
+    show (TCLiteralOverflow i)                           = printf "Constant %s is too large" (show i)
+    show (TCUndeclaredVariable (Ident ident))            = printf "Use of undeclared variable %s" (show ident)
+    show (TCRepeatedArguments (Ident ident))             = printf ("Function %s has repeated arguments") (show ident)
+    show (TCVoidArgument (Ident ident))                  = printf ("Argument of function %s has invalid type void") (show ident)
+    show (TCVoidType (Ident ident))                      = printf ("Tried to declare %s as void") (show ident)
+    show (TCClassRedeclaration (Ident ident))            = printf ("Tried to redeclare class %s") (show ident)
+    show (TCAccessOnNonClass)                            = printf ("Tried to access member of type which isn't class")
+    show (TCUndeclaredClass (Ident ident))               = printf ("Non existing class %s") (show ident)
+    show (TCClassDoesntHaveField (Ident c) (Ident f))    = printf ("Class %s doesn't have field %s") (show c) (show f)
+    show _ = ""
