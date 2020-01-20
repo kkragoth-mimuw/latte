@@ -373,14 +373,38 @@ typecheckExpr (ELValue lvalue) = do
 typecheckExpr (ELitInt i) = if (i > 2147483647 || i < -2147483648) then (throwError $ initTypecheckError $ TCLiteralOverflow i) else return Int
 typecheckExpr (ELitTrue) = return Boolean
 typecheckExpr (ELitFalse) = return Boolean
-typecheckExpr (EApp (LValue name) exprs) = do
-    funcType <- extractVariableType name
-    typecheckFuncApplication funcType exprs
-typecheckExpr(EApp (LValueClassField lvalue (Ident ident)) exprs) = do
+typecheckExpr (EApp lvalue@(LValue name) exprs) = do
+    env <- ask
+    case (currentClass env) of
+        Nothing -> do
+            funcType <- extractVariableType name
+            typecheckFuncApplication funcType exprs
+        Just thisClass -> do
+            let thisClassMethodIdents = map (\(_, (ClassMethodDef _ ident _ _ )) -> ident) (classMethods thisClass)
+
+            case find (==name) thisClassMethodIdents of
+                Just _ -> typecheckExpr (EApp (addThisToLValue lvalue) exprs)
+                Nothing -> do
+                    funcType <- extractVariableType name
+                    typecheckFuncApplication funcType exprs
+            
+
+typecheckExpr(EApp (LValueClassField lvalue methodIdent@(Ident ident)) exprs) = do
+    env <- ask
     classType <- extractLValueType lvalue
     case classType of
-        (ClassType (Ident cName)) -> do
-            let name = Ident (cName ++ "__" ++ ident)
+        (ClassType cIdent) -> do
+            classOfLValue <- case (Map.lookup cIdent (classes env)) of
+                Nothing -> throwError $ initTypecheckError $ TCErrorMessage "LValue not a valid class"
+                Just c -> return c
+
+            let classMethodIdents =  map (\(_, (ClassMethodDef _ ident _ _ )) -> ident) (classMethods classOfLValue)
+            case find (==methodIdent) classMethodIdents of
+                Just classMethod -> typecheckExpr (EApp (addThisToLValue lvalue) exprs)
+                Nothing -> do
+                    funcType <- extractVariableType methodIdent
+                    typecheckFuncApplication funcType exprs
+            let name = Ident ("__" ++ ident)
             funcType <- extractVariableType name
             typecheckFuncApplication funcType exprs
         _ -> throwError $ initTypecheckError $ TCErrorMessage "LValue not a class"

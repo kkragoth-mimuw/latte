@@ -5,7 +5,8 @@
 
 -- TODO:
 -- Class Typechecker
--- Priority of self.foo instead of foo
+-- Typecasting value expr
+-- ERROR of while
 -- Debug
 
 module LLVMCompiler where
@@ -965,7 +966,7 @@ compileExpr (EApp (LValueClassField lvalue (Ident ident)) exprs) = do
     let name = Ident (methodClassName ++ "__" ++ ident)
     let func = fromJust $ Map.lookup name (functions store)
     case func of
-        (Fun Void _) -> do
+        (Fun Void fArgs) -> do
             emit (CallVoid name args)
             return (LLVMVariable {
                 type' = LLVMType Void,
@@ -973,7 +974,7 @@ compileExpr (EApp (LValueClassField lvalue (Ident ident)) exprs) = do
                 blockLabel = (currentLabel store),
                 ident = Nothing
             })
-        (Fun type' _) -> do
+        (Fun type' fArgs) -> do
             newRegister <- getNextRegisterCounter
             let resultType = case type' of
                                     (ClassType _) -> LLVMTypePointer (LLVMType type')

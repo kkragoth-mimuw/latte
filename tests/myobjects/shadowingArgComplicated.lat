@@ -1,0 +1,17 @@
+class foo {
+	int bar;
+
+	void printBar() {
+		printInt(bar);
+		int bar = 42;
+		printInt(bar);
+		printInt(self.bar);
+	}
+}
+
+int main() {
+	foo f = new foo;
+	f.bar = 13;
+	f.printBar();
+	return 0;
+}

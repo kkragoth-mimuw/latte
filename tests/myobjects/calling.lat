@@ -1,0 +1,25 @@
+class fCallable {
+	int x;
+
+	void printX() {
+		printInt(x);
+	}
+}
+
+class havingCallable {
+	fCallable f;
+
+	void test() {
+		f.printX();
+	}
+}
+
+int main() {
+	havingCallable h = new havingCallable;
+	h.f = new fCallable;
+	h.f.x = 13;
+	h.test();
+	h.f.x = 42;
+	h.f.printX();
+	return 0;
+}
