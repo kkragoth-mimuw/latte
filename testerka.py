@@ -34,6 +34,13 @@ config = Box({
             ],
             "PATH": "tests/structs/"
         },
+        {
+            "NAME": "STRINGS_COMPARISONS",
+            "WHITELIST_TESTS": [
+
+            ],
+            "PATH": "tests/stringsmy/"
+        }
     ]
 })
 

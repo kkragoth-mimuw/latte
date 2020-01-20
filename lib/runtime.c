@@ -24,6 +24,10 @@ char* __concatStrings(char* s1, char *s2) {
     return result;
 }
 
-bool *__compareStrings(char* s1, char *s2) {
+bool __compareStringsEQ(char* s1, char *s2) {
     return (bool) (strcmp(s1, s2) == 0);
+}
+
+bool __compareStringsNE(char* s1, char *s2) {
+    return (bool) (strcmp(s1, s2) != 0);
 }

@@ -1095,6 +1095,7 @@ compileExpr (ERel expr1 relOp expr2) = do
     store <- get
     left <- compileExpr expr1
     right <- compileExpr expr2
+
     nextRegister <- getNextRegisterCounter
     let result = (LLVMVariable {
         type' = LLVMType Boolean,
@@ -1102,7 +1103,16 @@ compileExpr (ERel expr1 relOp expr2) = do
         blockLabel = currentLabel store,
         ident = Nothing
     })
-    emit (Operation left (RelBinOp relOp) right result)
+
+    if (type' left == LLVMType Str) then (do case relOp of
+                                                EQU -> emit $ (Call result (Ident "__compareStringsEQ") [left, right])
+                                                NE -> emit $ (Call result (Ident "__compareStringsNE") [left, right])
+                                                _ -> return ()
+                                            )
+                    
+    else (emit (Operation left (RelBinOp relOp) right result))
+
+
     return result
 compileExpr (EAnd expr1 expr2) = do
     store <- get
@@ -1341,7 +1351,10 @@ predefinedFunctions = ([
         (Ident "error", (Fun Void [])),
         (Ident "readInt", (Fun Int [])),
         (Ident "readString", (Fun Str [])),
-        (Ident "__concatStrings", (Fun Str [Str, Str]))
+        (Ident "__concatStrings", (Fun Str [Str, Str])),
+        (Ident "__compareStringsEQ", (Fun Boolean [Str, Str])),
+        (Ident "__compareStringsNE", (Fun Boolean [Str, Str]))
+
     ])
 
 showPredefinedFunctions :: String
@@ -1352,7 +1365,9 @@ showPredefinedFunctions = (intercalate ("\n") ([
         "declare void @error()",
         "declare i32 @readInt()",
         "declare i8* @readString()",
-        "declare i8* @__concatStrings(i8*, i8*)"
+        "declare i8* @__concatStrings(i8*, i8*)",
+        "declare i1 @__compareStringsEQ(i8*, i8*)",
+        "declare i1 @__compareStringsNE(i8*, i8*)"
     ])) ++ "\n"
 
 addThisToLValue :: LValue -> LValue

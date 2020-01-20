@@ -5,6 +5,8 @@ declare void @error()
 declare i32 @readInt()
 declare i8* @readString()
 declare i8* @__concatStrings(i8*, i8*)
+declare i1 @__compareStringsEQ(i8*, i8*)
+declare i1 @__compareStringsNE(i8*, i8*)
 
 @s1 = private constant [2 x i8] c"a\00"
 @s2 = private constant [2 x i8] c"b\00"
