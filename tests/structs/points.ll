@@ -177,32 +177,39 @@ L0:
 	%r21 = bitcast %Point3* %r20 to %Point2*
 	call void @Point2__move(%Point2* %r21,i32 2,i32 4)
 	%r22 = load %Point3*, %Point3** %r1
-	call void @Point3__moveZ(%Point3* %r22,i32 7)
-	%r23 = load %Point3*, %Point3** %r1
-	%r24 = bitcast %Point3* %r23 to %Point2*
-	store %Point2* %r24, %Point2** %r0
-	%r25 = load %Point2*, %Point2** %r0
-	call void @Point2__move(%Point2* %r25,i32 3,i32 5)
-	%r26 = load %Point4*, %Point4** %r2
-	%r27 = bitcast %Point4* %r26 to %Point2*
-	call void @Point2__move(%Point2* %r27,i32 1,i32 3)
+	%r23 = bitcast %Point3* %r22 to %Point3*
+	call void @Point3__moveZ(%Point3* %r23,i32 7)
+	%r24 = load %Point3*, %Point3** %r1
+	%r25 = bitcast %Point3* %r24 to %Point2*
+	store %Point2* %r25, %Point2** %r0
+	%r26 = load %Point2*, %Point2** %r0
+	%r27 = bitcast %Point2* %r26 to %Point2*
+	call void @Point2__move(%Point2* %r27,i32 3,i32 5)
 	%r28 = load %Point4*, %Point4** %r2
-	%r29 = bitcast %Point4* %r28 to %Point3*
-	call void @Point3__moveZ(%Point3* %r29,i32 6)
+	%r29 = bitcast %Point4* %r28 to %Point2*
+	call void @Point2__move(%Point2* %r29,i32 1,i32 3)
 	%r30 = load %Point4*, %Point4** %r2
-	call void @Point4__moveW(%Point4* %r30,i32 2)
-	%r31 = load %Point2*, %Point2** %r0
-	%r32 = call i32 @Point2__getX(%Point2* %r31)
-	call void @printInt(i32 %r32)
-	%r33 = load %Point2*, %Point2** %r0
-	%r34 = call i32 @Point2__getY(%Point2* %r33)
-	call void @printInt(i32 %r34)
-	%r35 = load %Point3*, %Point3** %r1
-	%r36 = call i32 @Point3__getZ(%Point3* %r35)
+	%r31 = bitcast %Point4* %r30 to %Point3*
+	call void @Point3__moveZ(%Point3* %r31,i32 6)
+	%r32 = load %Point4*, %Point4** %r2
+	%r33 = bitcast %Point4* %r32 to %Point4*
+	call void @Point4__moveW(%Point4* %r33,i32 2)
+	%r34 = load %Point2*, %Point2** %r0
+	%r35 = bitcast %Point2* %r34 to %Point2*
+	%r36 = call i32 @Point2__getX(%Point2* %r35)
 	call void @printInt(i32 %r36)
-	%r37 = load %Point4*, %Point4** %r2
-	%r38 = call i32 @Point4__getW(%Point4* %r37)
-	call void @printInt(i32 %r38)
+	%r37 = load %Point2*, %Point2** %r0
+	%r38 = bitcast %Point2* %r37 to %Point2*
+	%r39 = call i32 @Point2__getY(%Point2* %r38)
+	call void @printInt(i32 %r39)
+	%r40 = load %Point3*, %Point3** %r1
+	%r41 = bitcast %Point3* %r40 to %Point3*
+	%r42 = call i32 @Point3__getZ(%Point3* %r41)
+	call void @printInt(i32 %r42)
+	%r43 = load %Point4*, %Point4** %r2
+	%r44 = bitcast %Point4* %r43 to %Point4*
+	%r45 = call i32 @Point4__getW(%Point4* %r44)
+	call void @printInt(i32 %r45)
 	ret i32 0
 }
 

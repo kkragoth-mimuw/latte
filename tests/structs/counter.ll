@@ -54,16 +54,20 @@ L0:
 	store i32 0, i32* %r4
 	store %Counter* %r3, %Counter** %r0
 	%r5 = load %Counter*, %Counter** %r0
-	call void @Counter__incr(%Counter* %r5)
-	%r6 = load %Counter*, %Counter** %r0
+	%r6 = bitcast %Counter* %r5 to %Counter*
 	call void @Counter__incr(%Counter* %r6)
 	%r7 = load %Counter*, %Counter** %r0
-	call void @Counter__incr(%Counter* %r7)
-	%r8 = load %Counter*, %Counter** %r0
-	%r9 = call i32 @Counter__value(%Counter* %r8)
-	store i32 %r9, i32* %r1
-	%r10 = load i32, i32* %r1
-	call void @printInt(i32 %r10)
+	%r8 = bitcast %Counter* %r7 to %Counter*
+	call void @Counter__incr(%Counter* %r8)
+	%r9 = load %Counter*, %Counter** %r0
+	%r10 = bitcast %Counter* %r9 to %Counter*
+	call void @Counter__incr(%Counter* %r10)
+	%r11 = load %Counter*, %Counter** %r0
+	%r12 = bitcast %Counter* %r11 to %Counter*
+	%r13 = call i32 @Counter__value(%Counter* %r12)
+	store i32 %r13, i32* %r1
+	%r14 = load i32, i32* %r1
+	call void @printInt(i32 %r14)
 	ret i32 0
 }
 

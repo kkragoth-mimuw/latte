@@ -946,28 +946,29 @@ compileExpr (EApp (LValueClassField lvalue (Ident ident)) exprs) = do
     let index = fromJust $ findIndex (\(_, (ClassMethodDef _ methodIdent _ _)) -> methodIdent == (Ident ident)) classMapEntryMethods
     let (methodClassIdent@(Ident methodClassName), _) = classMapEntryMethods!!index
 
-    thisVar <- case (methodClassIdent, (Ident cIdent)) of
-                    (a, b) | a == b -> return lvalueVarLoaded
-                    _ -> do -- cast needed
-                        newRegister <- getNextRegisterCounter
-                        blockLabel <- gets currentLabel
+    -- thisVar <- case (methodClassIdent, (Ident cIdent)) of
+    --                 (a, b) | a == b -> return lvalueVarLoaded
+    --                 _ -> do -- cast needed
+    --                     newRegister <- getNextRegisterCounter
+    --                     blockLabel <- gets currentLabel
 
-                        let typeCastThis = (LLVMVariable {
-                            type' = LLVMTypePointer (LLVMType (ClassType methodClassIdent)),
-                            address = LLVMAddressRegister newRegister,
-                            blockLabel = blockLabel,
-                            ident = Nothing
-                        })
+    --                     let typeCastThis = (LLVMVariable {
+    --                         type' = LLVMTypePointer (LLVMType (ClassType methodClassIdent)),
+    --                         address = LLVMAddressRegister newRegister,
+    --                         blockLabel = blockLabel,
+    --                         ident = Nothing
+    --                     })
 
-                        emit $ Bitcast typeCastThis (type' lvalueVarLoaded) lvalueVarLoaded (type' typeCastThis)
-                        return typeCastThis
+    --                     emit $ Bitcast typeCastThis (type' lvalueVarLoaded) lvalueVarLoaded (type' typeCastThis)
+    --                     return typeCastThis
 
-    let args = [thisVar] ++ argsWithoutThis
+    let args = [lvalueVarLoaded] ++ argsWithoutThis
     let name = Ident (methodClassName ++ "__" ++ ident)
     let func = fromJust $ Map.lookup name (functions store)
     case func of
         (Fun Void fArgs) -> do
-            emit (CallVoid name args)
+            typeCastedArgs <- typeCastArgs fArgs args
+            emit (CallVoid name (typeCastedArgs))
             return (LLVMVariable {
                 type' = LLVMType Void,
                 address = LLVMAddressVoid,
@@ -975,6 +976,7 @@ compileExpr (EApp (LValueClassField lvalue (Ident ident)) exprs) = do
                 ident = Nothing
             })
         (Fun type' fArgs) -> do
+            typeCastedArgs <- typeCastArgs fArgs args
             newRegister <- getNextRegisterCounter
             let resultType = case type' of
                                     (ClassType _) -> LLVMTypePointer (LLVMType type')
@@ -985,7 +987,7 @@ compileExpr (EApp (LValueClassField lvalue (Ident ident)) exprs) = do
                 blockLabel = (currentLabel store),
                 ident = Nothing
             })
-            emit (Call result name args)
+            emit (Call result name (typeCastedArgs))
             return result
 compileExpr (EString s) = do
     store <- get
@@ -1367,15 +1369,16 @@ compileEApp (LValue name) exprs = do
     store <- get
     let func = fromJust $ Map.lookup name (functions store)
     case func of
-        (Fun Void _) -> do
-            emit (CallVoid name args)
+        (Fun Void fArgs) -> do
+            typeCastedArgs <- typeCastArgs fArgs args
+            emit (CallVoid name typeCastedArgs)
             return (LLVMVariable {
                 type' = LLVMType Void,
                 address = LLVMAddressVoid,
                 blockLabel = (currentLabel store),
                 ident = Nothing
             })
-        (Fun type' _) -> do
+        (Fun type' fArgs) -> do
             newRegister <- getNextRegisterCounter
             let resultType = case type' of
                                     (ClassType _) -> LLVMTypePointer (LLVMType type')
@@ -1386,5 +1389,33 @@ compileEApp (LValue name) exprs = do
                 blockLabel = (currentLabel store),
                 ident = Nothing
             })
-            emit (Call result name args)
+            typeCastedArgs <- typeCastArgs fArgs args
+            emit (Call result name typeCastedArgs)
             return result
+
+typeCastArgs :: [Type] -> [LLVMVariable] -> GenM ([LLVMVariable])
+typeCastArgs fArgs args = do
+    liftIO $ putStrLn $ "Function fArgs"
+    liftIO $ putStrLn $ show fArgs
+    liftIO $ putStrLn $ "Function args"
+    liftIO $ putStrLn $ show args
+    llvmVariables <- (mapM (\(argType, llvmVariable) -> do
+                                                            liftIO $ putStrLn $ "Trying to convert " ++ (show $ type' llvmVariable) ++ " to " ++ (show $ LLVMType argType)
+                                                            case ((type' llvmVariable), (LLVMType argType)) of
+                                                                (a, b) | a == b -> return llvmVariable
+                                                                _ -> do
+                                                                    newRegister <- getNextRegisterCounter
+                                                                    blockLabel <- gets currentLabel
+
+                                                                    let typeCasted = (LLVMVariable {
+                                                                        type' = LLVMTypePointer (LLVMType argType),
+                                                                        address = LLVMAddressRegister newRegister,
+                                                                        blockLabel = blockLabel,
+                                                                        ident = Nothing
+                                                                    })
+
+                                                                    emit $ Bitcast typeCasted (type' llvmVariable) llvmVariable (type' typeCasted)
+                                                                    return typeCasted
+                                                    ) (zip fArgs args)
+                )
+    return llvmVariables

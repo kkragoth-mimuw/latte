@@ -40,7 +40,8 @@ L0:
 	%r1 = load %havingCallable*, %havingCallable** %r0
 	%r2 = getelementptr %havingCallable, %havingCallable* %r1, i32 0, i32 0
 	%r3 = load %fCallable*, %fCallable** %r2
-	call void @fCallable__printX(%fCallable* %r3)
+	%r4 = bitcast %fCallable* %r3 to %fCallable*
+	call void @fCallable__printX(%fCallable* %r4)
 	ret void
 }
 
@@ -67,16 +68,18 @@ L0:
 	%r12 = getelementptr %fCallable, %fCallable* %r11, i32 0, i32 0
 	store i32 13, i32* %r12
 	%r13 = load %havingCallable*, %havingCallable** %r0
-	call void @havingCallable__test(%havingCallable* %r13)
-	%r14 = load %havingCallable*, %havingCallable** %r0
-	%r15 = getelementptr %havingCallable, %havingCallable* %r14, i32 0, i32 0
-	%r16 = load %fCallable*, %fCallable** %r15
-	%r17 = getelementptr %fCallable, %fCallable* %r16, i32 0, i32 0
-	store i32 42, i32* %r17
-	%r18 = load %havingCallable*, %havingCallable** %r0
-	%r19 = getelementptr %havingCallable, %havingCallable* %r18, i32 0, i32 0
-	%r20 = load %fCallable*, %fCallable** %r19
-	call void @fCallable__printX(%fCallable* %r20)
+	%r14 = bitcast %havingCallable* %r13 to %havingCallable*
+	call void @havingCallable__test(%havingCallable* %r14)
+	%r15 = load %havingCallable*, %havingCallable** %r0
+	%r16 = getelementptr %havingCallable, %havingCallable* %r15, i32 0, i32 0
+	%r17 = load %fCallable*, %fCallable** %r16
+	%r18 = getelementptr %fCallable, %fCallable* %r17, i32 0, i32 0
+	store i32 42, i32* %r18
+	%r19 = load %havingCallable*, %havingCallable** %r0
+	%r20 = getelementptr %havingCallable, %havingCallable* %r19, i32 0, i32 0
+	%r21 = load %fCallable*, %fCallable** %r20
+	%r22 = bitcast %fCallable* %r21 to %fCallable*
+	call void @fCallable__printX(%fCallable* %r22)
 	ret i32 0
 }
 

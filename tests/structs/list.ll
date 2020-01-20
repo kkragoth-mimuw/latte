@@ -22,11 +22,13 @@ declare i1 @__compareStringsNE(i8*, i8*)
 define i32 @main() {
 L0:
 	%r0 = call %list* @fromTo(i32 1,i32 50)
-	%r1 = call i32 @length(%list* %r0)
+	%r2 = bitcast %list* %r0 to %list*
+	%r1 = call i32 @length(%list* %r2)
 	call void @printInt(i32 %r1)
-	%r2 = call %list* @fromTo(i32 1,i32 100)
-	%r3 = call i32 @length2(%list* %r2)
-	call void @printInt(i32 %r3)
+	%r3 = call %list* @fromTo(i32 1,i32 100)
+	%r5 = bitcast %list* %r3 to %list*
+	%r4 = call i32 @length2(%list* %r5)
+	call void @printInt(i32 %r4)
 	ret i32 0
 }
 
@@ -80,9 +82,10 @@ L2:
 	%r3 = load %list*, %list** %r0
 	%r4 = getelementptr %list, %list* %r3, i32 0, i32 1
 	%r5 = load %list*, %list** %r4
-	%r6 = call i32 @length(%list* %r5)
-	%r7 = add i32 1, %r6
-	ret i32 %r7
+	%r7 = bitcast %list* %r5 to %list*
+	%r6 = call i32 @length(%list* %r7)
+	%r8 = add i32 1, %r6
+	ret i32 %r8
 }
 
 define %list* @fromTo(i32 %m, i32 %n) {
@@ -103,7 +106,8 @@ L2:
 	%r7 = add i32 %r6, 1
 	%r8 = load i32, i32* %r1
 	%r9 = call %list* @fromTo(i32 %r7,i32 %r8)
-	%r10 = call %list* @cons(i32 %r5,%list* %r9)
+	%r11 = bitcast %list* %r9 to %list*
+	%r10 = call %list* @cons(i32 %r5,%list* %r11)
 	ret %list* %r10
 }
 

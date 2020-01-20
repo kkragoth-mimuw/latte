@@ -1,0 +1,17 @@
+class A {
+	int f1;
+}
+
+class B extends A {
+	int f2;
+}
+
+void shouldWork(A a) {
+	printString("OK");
+}
+
+int main() {
+	B b = new B;
+	shouldWork(b);
+	return 0;
+}

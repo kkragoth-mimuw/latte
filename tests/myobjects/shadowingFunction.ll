@@ -33,7 +33,8 @@ L0:
 	%r0 = alloca %list*
 	store %list* %self, %list** %r0
 	%r1 = load %list*, %list** %r0
-	call void @list__printX(%list* %r1)
+	%r2 = bitcast %list* %r1 to %list*
+	call void @list__printX(%list* %r2)
 	ret void
 }
 
@@ -57,7 +58,8 @@ L0:
 	store %list* null, %list** %r4
 	store %list* %r2, %list** %r0
 	%r5 = load %list*, %list** %r0
-	call void @list__test(%list* %r5)
+	%r6 = bitcast %list* %r5 to %list*
+	call void @list__test(%list* %r6)
 	ret i32 0
 }
 

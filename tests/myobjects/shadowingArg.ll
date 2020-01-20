@@ -46,7 +46,8 @@ L0:
 	%r5 = getelementptr %foo, %foo* %r4, i32 0, i32 0
 	store i32 3, i32* %r5
 	%r6 = load %foo*, %foo** %r0
-	call void @foo__printBar(%foo* %r6,i32 2)
+	%r7 = bitcast %foo* %r6 to %foo*
+	call void @foo__printBar(%foo* %r7,i32 2)
 	ret i32 0
 }
 
