@@ -66,7 +66,6 @@ indicateReturnType env type' = env { currentFunctionReturnType = Just (type') }
 
 data TypecheckErrorWithLogging = TypecheckErrorWithLogging TypecheckError Integer [String] deriving (Show)
 
-
 defaultLevelOfLogging = 7
 
 initTypecheckError :: TypecheckError -> TypecheckErrorWithLogging
@@ -90,6 +89,7 @@ prettyShowType type_ = case type_ of
     Str   -> "string"
     Boolean  -> "Boolean"
     Void  -> "void"
+    (ClassType (Ident c) -> "class " ++ c
 
 trimLeft :: String -> String
 trimLeft = dropWhile isSpace
