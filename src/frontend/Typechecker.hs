@@ -234,6 +234,14 @@ typecheckDeclItem type' (Init ident expr) = do
     env <- ask
     exprType <- typecheckExpr expr
 
+    case (type') of
+        (ClassType lIdent) -> do
+            classesMap <- asks classes
+            case (Map.lookup lIdent classesMap) of 
+                Just _ -> return ()
+                Nothing -> throwError $ initTypecheckError $ TCErrorMessage ("Class " ++ show lIdent ++ " wasn't declared!")
+        _ -> return ()
+
     -- todo check if type class in classes
 
     checkIfIsAlreadyDeclaredATCurrentLevel ident
@@ -254,6 +262,14 @@ typecheckDeclItem type' (Init ident expr) = do
 
 typecheckDeclItem type' (NoInit ident) = do
     checkIfIsAlreadyDeclaredATCurrentLevel ident
+
+    case (type') of
+        (ClassType lIdent) -> do
+            classesMap <- asks classes
+            case (Map.lookup lIdent classesMap) of 
+                Just _ -> return ()
+                Nothing -> throwError $ initTypecheckError $ TCErrorMessage ("Class " ++ show lIdent ++ " wasn't declared!")
+        _ -> return ()
 
     env <- ask
 
