@@ -33,21 +33,24 @@ increaseLevel :: Env -> Env
 increaseLevel env = env { level = (level env) + 1}
 
 data Store = Store {
-    functionVars :: [VariableInfo]
+    functionVars :: [VariableInfo],
+    blockId :: Integer
 }
 
 initStore = Store {
-    functionVars = []
+    functionVars = [],
+    blockId = 0
 }
 
 data VariableInfo = VariableInfo {
     ident :: Ident,
     levelDeclared :: Integer,
+    blockIdDeclared :: Integer,
     type' :: Type
 }
 
 nameMangleVariableInfo :: VariableInfo -> String
-nameMangleVariableInfo variableInfo = printf("%s_%s_%s") (showIdent $ ident variableInfo) (show $ levelDeclared variableInfo) (showType $ type' variableInfo)
+nameMangleVariableInfo variableInfo = printf("%s_%s_%s_%s") (showIdent $ ident variableInfo) (show $ levelDeclared variableInfo) (show $ blockIdDeclared variableInfo) (showType $ type' variableInfo)
 
 showIdent :: Ident -> String
 showIdent (Ident s) = s
@@ -56,6 +59,7 @@ showType :: Type -> String
 showType Int = "i"
 showType Str = "str"
 showType Boolean = "b"
+showType (ClassType (Ident cIdent)) = "class_cIdent"
 
 instance NameMangleable Program where
     nameMangle (Program topdefs) = do
@@ -81,7 +85,15 @@ nameMangleTopDef (ClassDefExt ident baseIdent classPoles) = do
     return (ClassDefExt ident baseIdent classPoles')
 
 nameMangleClassPole :: ClassPole -> NMM ClassPole
--- nameMangleClassPole (ClassMethodDef type' ident args block) = do
+nameMangleClassPole (ClassMethodDef fnType ident args block@(Block stmts)) = do
+    modify (\state -> state {
+            functionVars = []
+        })
+    (_, nameMangledStmts) <- nameMangleStmts stmts
+    functionVariables <- gets functionVars
+    let functionVariablesDeclarations = map (\functionVar -> Decl (type' functionVar) [NoInit (Ident (nameMangleVariableInfo functionVar))]) functionVariables
+    -- todo: functionVariables to decls
+    return $ ClassMethodDef fnType ident args (Block (functionVariablesDeclarations ++ nameMangledStmts))
 nameMangleClassPole c = return c
 
 nameMangleStmts :: [Stmt] -> NMM (Env, [Stmt])
@@ -100,7 +112,13 @@ nameMangleStmt (Empty) = do
 nameMangleStmt (Decl type' []) = do
     env <- ask
     return (env, [])
-nameMangleStmt (BStmt (Block stmts)) = local increaseLevel (nameMangleStmts stmts)
+nameMangleStmt (BStmt (Block stmts)) = do
+    env <- ask
+    modify (\store -> store {
+        blockId = (blockId store) + 1
+    })
+    (_, stmts') <- local increaseLevel (nameMangleStmts stmts)
+    return (env, [BStmt (Block stmts')])
 nameMangleStmt (Decl type' (x:xs)) = do
     (envX, stmtX) <- nameMangleDeclItem type' x
     (envXS, stmtsXS) <- local (const envX) (nameMangleStmt (Decl type' xs))
@@ -165,11 +183,12 @@ nameMangleDeclItem :: Type -> Item -> NMM (Env, Stmt)
 nameMangleDeclItem type' (Init ident expr) = do
     env <- ask
     let varLevel = level env
-
+    currentBlockId <- gets blockId
     let variableInfo = VariableInfo {
         ident = ident,
         type' = type',
-        levelDeclared = varLevel
+        levelDeclared = varLevel,
+        blockIdDeclared = currentBlockId
     }
     
     modify (\store -> store {
@@ -186,6 +205,28 @@ nameMangleDeclItem type' (Init ident expr) = do
 
     return (newEnv, stmt)
 
+nameMangleDeclItem type' (NoInit ident) = do
+    env <- ask
+    let varLevel = level env
+    currentBlockId <- gets blockId
+    let variableInfo = VariableInfo {
+        ident = ident,
+        type' = type',
+        levelDeclared = varLevel,
+        blockIdDeclared = currentBlockId
+    }
+    
+    modify (\store -> store {
+        functionVars = (functionVars store) ++ [variableInfo]
+    })
+
+    let newEnv = env {
+        vars = Map.insert ident variableInfo (vars env)
+    }
+
+    let stmt = Empty
+
+    return (newEnv, stmt)
 -- nameMangleLValue :: LValue -> NMM LValue
 -- nameMangleLValue (LValue ident) = do
 --     varsMap <- asks vars0

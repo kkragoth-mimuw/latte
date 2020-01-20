@@ -18,8 +18,11 @@ L0:
 	%r0 = alloca i32
 	store i32 0, i32* %r0
 	%r1 = alloca i32
-	store i32 1, i32* %r1
+	store i32 0, i32* %r1
 	%r2 = alloca i32
+	store i32 0, i32* %r2
+	store i32 0, i32* %r0
+	store i32 1, i32* %r1
 	store i32 2, i32* %r2
 	br label %L1
 L1:

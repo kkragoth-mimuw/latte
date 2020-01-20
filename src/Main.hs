@@ -57,9 +57,10 @@ run v p s filePathM = let ts = myLLexer s in case p ts of
            Ok  tree ->  do
                         optimizedProgram <- runASTOptimizer tree
                         nameMangledProgram <- runNameMangler optimizedProgram
-                        putStrLn $ show nameMangledProgram
-                        exitSuccess
-                        compilerInfo <- runLLVMCompiler optimizedProgram
+                        -- putStrLn $ show nameMangledProgram
+                        -- exitSuccess
+                        -- compilerInfo <- runLLVMCompiler optimizedProgram
+                        compilerInfo <- runLLVMCompiler nameMangledProgram
                         case compilerInfo of
                           Left error -> do
                             putStrLn "ERROR\n"

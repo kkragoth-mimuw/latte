@@ -20,20 +20,22 @@ declare i8* @__concatStrings(i8*, i8*)
 define i32 @main() {
 L0:
 	%r0 = alloca i32
+	store i32 0, i32* %r0
+	%r1 = alloca i32
+	store i32 0, i32* %r1
 	store i32 56, i32* %r0
-	%r1 = sub i32 0, 23
-	%r2 = alloca i32
-	store i32 %r1, i32* %r2
+	%r2 = sub i32 0, 23
+	store i32 %r2, i32* %r1
 	%r3 = load i32, i32* %r0
-	%r4 = load i32, i32* %r2
+	%r4 = load i32, i32* %r1
 	%r5 = add i32 %r3, %r4
 	call void @printInt(i32 %r5)
 	%r6 = load i32, i32* %r0
-	%r7 = load i32, i32* %r2
+	%r7 = load i32, i32* %r1
 	%r8 = sub i32 %r6, %r7
 	call void @printInt(i32 %r8)
 	%r9 = load i32, i32* %r0
-	%r10 = load i32, i32* %r2
+	%r10 = load i32, i32* %r1
 	%r11 = mul i32 %r9, %r10
 	call void @printInt(i32 %r11)
 	%r12 = sdiv i32 45, 2
@@ -41,18 +43,18 @@ L0:
 	%r13 = srem i32 78, 3
 	call void @printInt(i32 %r13)
 	%r14 = load i32, i32* %r0
-	%r15 = load i32, i32* %r2
+	%r15 = load i32, i32* %r1
 	%r16 = sub i32 %r14, %r15
 	%r17 = load i32, i32* %r0
-	%r18 = load i32, i32* %r2
+	%r18 = load i32, i32* %r1
 	%r19 = add i32 %r17, %r18
 	%r20 = icmp sgt i32 %r16, %r19
 	call void @printBool(i1 %r20)
 	%r21 = load i32, i32* %r0
-	%r22 = load i32, i32* %r2
+	%r22 = load i32, i32* %r1
 	%r23 = sdiv i32 %r21, %r22
 	%r24 = load i32, i32* %r0
-	%r25 = load i32, i32* %r2
+	%r25 = load i32, i32* %r1
 	%r26 = mul i32 %r24, %r25
 	%r27 = icmp sle i32 %r23, %r26
 	call void @printBool(i1 %r27)

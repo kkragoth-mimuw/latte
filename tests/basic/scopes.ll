@@ -17,17 +17,20 @@ define i32 @main() {
 L0:
 	%r0 = alloca i32
 	store i32 0, i32* %r0
-	%r1 = load i32, i32* %r0
-	call void @printInt(i32 %r1)
+	%r1 = alloca i32
+	store i32 0, i32* %r1
 	%r2 = alloca i32
-	store i32 1, i32* %r2
-	%r3 = load i32, i32* %r2
+	store i32 0, i32* %r2
+	store i32 0, i32* %r0
+	%r3 = load i32, i32* %r0
 	call void @printInt(i32 %r3)
-	%r4 = load i32, i32* %r0
+	store i32 1, i32* %r1
+	%r4 = load i32, i32* %r1
 	call void @printInt(i32 %r4)
-	%r5 = alloca i32
-	store i32 2, i32* %r5
-	%r6 = load i32, i32* %r5
+	%r5 = load i32, i32* %r0
+	call void @printInt(i32 %r5)
+	store i32 2, i32* %r2
+	%r6 = load i32, i32* %r2
 	call void @printInt(i32 %r6)
 	%r7 = load i32, i32* %r0
 	call void @printInt(i32 %r7)

@@ -18,37 +18,39 @@ declare i8* @__concatStrings(i8*, i8*)
 
 define i32 @main() {
 L0:
-	%r0 = call i32 @fac(i32 10)
-	call void @printInt(i32 %r0)
-	%r1 = call i32 @rfac(i32 10)
-	call void @printInt(i32 %r1)
-	%r2 = call i32 @mfac(i32 10)
-	call void @printInt(i32 %r2)
-	%r3 = call i32 @ifac(i32 10)
-	call void @printInt(i32 %r3)
-	%r4 = bitcast [1 x i8]* @s1 to i8*
-	%r5 = alloca i8*
-	store i8* %r4, i8** %r5
-	%r6 = alloca i32
-	store i32 10, i32* %r6
-	%r7 = alloca i32
-	store i32 1, i32* %r7
+	%r0 = bitcast [1 x i8]* @s1 to i8*
+	%r1 = alloca i8*
+	store i8* %r0, i8** %r1
+	%r2 = alloca i32
+	store i32 0, i32* %r2
+	%r3 = alloca i32
+	store i32 0, i32* %r3
+	%r4 = call i32 @fac(i32 10)
+	call void @printInt(i32 %r4)
+	%r5 = call i32 @rfac(i32 10)
+	call void @printInt(i32 %r5)
+	%r6 = call i32 @mfac(i32 10)
+	call void @printInt(i32 %r6)
+	%r7 = call i32 @ifac(i32 10)
+	call void @printInt(i32 %r7)
+	store i32 10, i32* %r2
+	store i32 1, i32* %r3
 	br label %L1
 L1:
-	%r8 = load i32, i32* %r6
+	%r8 = load i32, i32* %r2
 	%r9 = icmp sgt i32 %r8, 0
 	br i1 %r9, label %L2, label %L3
 L2:
-	%r10 = load i32, i32* %r7
-	%r11 = load i32, i32* %r6
+	%r10 = load i32, i32* %r3
+	%r11 = load i32, i32* %r2
 	%r12 = mul i32 %r10, %r11
-	store i32 %r12, i32* %r7
-	%r13 = load i32, i32* %r6
+	store i32 %r12, i32* %r3
+	%r13 = load i32, i32* %r2
 	%r14 = sub i32 %r13, 1
-	store i32 %r14, i32* %r6
+	store i32 %r14, i32* %r2
 	br label %L1
 L3:
-	%r15 = load i32, i32* %r7
+	%r15 = load i32, i32* %r3
 	call void @printInt(i32 %r15)
 	%r16 = bitcast [2 x i8]* @s2 to i8*
 	%r17 = call i8* @repStr(i8* %r16,i32 60)
@@ -159,32 +161,32 @@ L0:
 	store i32 %l, i32* %r0
 	%r1 = alloca i32
 	store i32 %h, i32* %r1
-	%r2 = load i32, i32* %r0
-	%r3 = load i32, i32* %r1
-	%r4 = icmp eq i32 %r2, %r3
-	br i1 %r4, label %L1, label %L2
+	%r2 = alloca i32
+	store i32 0, i32* %r2
+	%r3 = load i32, i32* %r0
+	%r4 = load i32, i32* %r1
+	%r5 = icmp eq i32 %r3, %r4
+	br i1 %r5, label %L1, label %L2
 L1:
-	%r5 = load i32, i32* %r0
-	ret i32 %r5
-L2:
 	%r6 = load i32, i32* %r0
-	%r7 = load i32, i32* %r1
-	%r8 = icmp sgt i32 %r6, %r7
-	br i1 %r8, label %L3, label %L4
+	ret i32 %r6
+L2:
+	%r7 = load i32, i32* %r0
+	%r8 = load i32, i32* %r1
+	%r9 = icmp sgt i32 %r7, %r8
+	br i1 %r9, label %L3, label %L4
 L3:
 	ret i32 1
 L4:
-	%r9 = alloca i32
-	store i32 0, i32* %r9
 	%r10 = load i32, i32* %r0
 	%r11 = load i32, i32* %r1
 	%r12 = add i32 %r10, %r11
 	%r13 = sdiv i32 %r12, 2
-	store i32 %r13, i32* %r9
+	store i32 %r13, i32* %r2
 	%r14 = load i32, i32* %r0
-	%r15 = load i32, i32* %r9
+	%r15 = load i32, i32* %r2
 	%r16 = call i32 @ifac2f(i32 %r14,i32 %r15)
-	%r17 = load i32, i32* %r9
+	%r17 = load i32, i32* %r2
 	%r18 = add i32 %r17, 1
 	%r19 = load i32, i32* %r1
 	%r20 = call i32 @ifac2f(i32 %r18,i32 %r19)
@@ -203,23 +205,26 @@ L0:
 	store i8* %r2, i8** %r3
 	%r4 = alloca i32
 	store i32 0, i32* %r4
+	%r5 = bitcast [1 x i8]* @s1 to i8*
+	store i8* %r5, i8** %r3
+	store i32 0, i32* %r4
 	br label %L1
 L1:
-	%r5 = load i32, i32* %r4
-	%r6 = load i32, i32* %r1
-	%r7 = icmp slt i32 %r5, %r6
-	br i1 %r7, label %L2, label %L3
+	%r6 = load i32, i32* %r4
+	%r7 = load i32, i32* %r1
+	%r8 = icmp slt i32 %r6, %r7
+	br i1 %r8, label %L2, label %L3
 L2:
-	%r8 = load i8*, i8** %r3
-	%r9 = load i8*, i8** %r0
-	%r10 = call i8* @__concatStrings(i8* %r8,i8* %r9)
-	store i8* %r10, i8** %r3
-	%r11 = load i32, i32* %r4
-	%r12 = add i32 %r11, 1
-	store i32 %r12, i32* %r4
+	%r9 = load i8*, i8** %r3
+	%r10 = load i8*, i8** %r0
+	%r11 = call i8* @__concatStrings(i8* %r9,i8* %r10)
+	store i8* %r11, i8** %r3
+	%r12 = load i32, i32* %r4
+	%r13 = add i32 %r12, 1
+	store i32 %r13, i32* %r4
 	br label %L1
 L3:
-	%r13 = load i8*, i8** %r3
-	ret i8* %r13
+	%r14 = load i8*, i8** %r3
+	ret i8* %r14
 }
 

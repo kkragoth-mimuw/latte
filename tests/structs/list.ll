@@ -111,6 +111,7 @@ L0:
 	store %list* %xs, %list** %r0
 	%r1 = alloca i32
 	store i32 0, i32* %r1
+	store i32 0, i32* %r1
 	br label %L1
 L1:
 	%r2 = load %list*, %list** %r0

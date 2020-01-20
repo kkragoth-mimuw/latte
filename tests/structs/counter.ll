@@ -44,22 +44,23 @@ define i32 @main() {
 L0:
 	%r0 = alloca %Counter*
 	store %Counter* null, %Counter** %r0
-	%r1 = call i8* @malloc(i32 4)
-	%r2 = bitcast i8* %r1 to %Counter*
-	%r3 = getelementptr %Counter, %Counter* %r2, i32 0, i32 0
-	store i32 0, i32* %r3
-	store %Counter* %r2, %Counter** %r0
-	%r4 = load %Counter*, %Counter** %r0
-	call void @Counter__incr(%Counter* %r4)
+	%r1 = alloca i32
+	store i32 0, i32* %r1
+	%r2 = call i8* @malloc(i32 4)
+	%r3 = bitcast i8* %r2 to %Counter*
+	%r4 = getelementptr %Counter, %Counter* %r3, i32 0, i32 0
+	store i32 0, i32* %r4
+	store %Counter* %r3, %Counter** %r0
 	%r5 = load %Counter*, %Counter** %r0
 	call void @Counter__incr(%Counter* %r5)
 	%r6 = load %Counter*, %Counter** %r0
 	call void @Counter__incr(%Counter* %r6)
 	%r7 = load %Counter*, %Counter** %r0
-	%r8 = call i32 @Counter__value(%Counter* %r7)
-	%r9 = alloca i32
-	store i32 %r8, i32* %r9
-	%r10 = load i32, i32* %r9
+	call void @Counter__incr(%Counter* %r7)
+	%r8 = load %Counter*, %Counter** %r0
+	%r9 = call i32 @Counter__value(%Counter* %r8)
+	store i32 %r9, i32* %r1
+	%r10 = load i32, i32* %r1
 	call void @printInt(i32 %r10)
 	ret i32 0
 }

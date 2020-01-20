@@ -15,10 +15,10 @@ declare i8* @__concatStrings(i8*, i8*)
 
 define i32 @main() {
 L0:
-	br label %L1
-L1:
 	%r0 = alloca i32
 	store i32 0, i32* %r0
+	br label %L1
+L1:
 	%r1 = call i32 @readInt()
 	store i32 %r1, i32* %r0
 	%r2 = load i32, i32* %r0

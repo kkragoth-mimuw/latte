@@ -18,6 +18,7 @@ L0:
 	%r0 = alloca i32
 	store i32 0, i32* %r0
 	%r1 = alloca i32
+	store i32 0, i32* %r1
 	store i32 56, i32* %r1
 	%r2 = load i32, i32* %r1
 	%r3 = add i32 %r2, 45

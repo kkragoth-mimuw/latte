@@ -18,6 +18,7 @@ L0:
 	%r0 = alloca i32
 	store i32 0, i32* %r0
 	%r1 = alloca i32
+	store i32 0, i32* %r1
 	store i32 7, i32* %r1
 	%r2 = sub i32 0, 1234234
 	store i32 %r2, i32* %r0
