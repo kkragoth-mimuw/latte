@@ -7,6 +7,7 @@
 -- String comparison
 -- Class methods dont duplicate
 -- Class Typechecker
+-- Return checker
 
 module LLVMCompiler where
 
@@ -953,12 +954,40 @@ compileExpr (EApp (LValueClassField lvalue (Ident ident)) exprs) = do
     }
     emit $ (Load lvalueVarLoaded lvalueVarPointer)
     argsWithoutThis <- mapM compileExpr exprs
-    let args = [lvalueVarLoaded] ++ argsWithoutThis
     store <- get
 
     let (LLVMTypePointer (LLVMType (ClassType (Ident cIdent)))) = type' lvalueVarLoaded
 
-    let name = Ident (cIdent ++ "__" ++ ident)
+    -- figure out correct class
+    classesMap <- gets classes
+    let classMapEntryMethods = llvmClassMethods $ fromJust $ Map.lookup (Ident cIdent)  classesMap
+    let index = fromJust $ findIndex (\(_, (ClassMethodDef _ methodIdent _ _)) -> methodIdent == (Ident ident)) classMapEntryMethods
+    let (methodClassIdent@(Ident methodClassName), _) = classMapEntryMethods!!index
+
+    thisVar <- case (methodClassIdent, (Ident cIdent)) of
+                    (a, b) | a == b -> return lvalueVarLoaded
+                    _ -> do -- cast needed
+                        newRegister <- getNextRegisterCounter
+                        blockLabel <- gets currentLabel
+
+                        let typeCastThis = (LLVMVariable {
+                            type' = LLVMTypePointer (LLVMType (ClassType methodClassIdent)),
+                            address = LLVMAddressRegister newRegister,
+                            blockLabel = blockLabel,
+                            ident = Nothing
+                        })
+
+                        emit $ Bitcast typeCastThis (type' lvalueVarLoaded) lvalueVarLoaded (type' typeCastThis)
+                        return typeCastThis
+
+    let args = [thisVar] ++ argsWithoutThis
+    let name = Ident (methodClassName ++ "__" ++ ident)
+    liftIO $ putStrLn $ "LValue " ++ (show lvalue)
+    liftIO $ putStrLn $ ""
+    liftIO $ putStrLn $ "LValue Pointer " ++ (show lvalueVarPointer)
+    liftIO $ putStrLn $ ""
+    liftIO $ putStrLn $ "LValue VarLoaded " ++ (show lvalueVarLoaded)
+    liftIO $ putStrLn $ ""
     liftIO $ putStrLn $ "Trying to access function" ++ (show name)
     liftIO $ putStrLn $ "Functions " ++ (show (functions store))
     varsMap <- asks vars
