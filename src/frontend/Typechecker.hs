@@ -109,11 +109,9 @@ class Typecheckable f where
 
 instance Typecheckable Program where
     typecheckProgram (Program topdefs) = do
-        env <- ask
-        let classesMap = createClassMapFromTopDefs topdefs
-        let newEnv = env { classes = classesMap }
+        let classesMap = ( createClassMapFromTopDefs topdefs)
 
-        newEnv <- local (env) (fillTopDefsInformation topdefs)
+        newEnv <- local (\env -> env { classes = classesMap }) (fillTopDefsInformation topdefs)
         local (const newEnv) (mapM_ typecheckTopDef topdefs)
         local (const newEnv) typecheckMainBlock
         return ()
@@ -133,7 +131,6 @@ fillTopDefsInformation ((FnDef fnType (Ident fnNameNotNormalized) args (Block st
                 let newEnv = env { typesMap = newTypesMap }
 
                 return newEnv
-
 fillTopDefsInformation ((ClassDef cName classPoles):xs) = do
     env <- fillTopDefsInformation xs
     case S.member cName (classesCheckForDuplicates env) of
@@ -399,9 +396,9 @@ extractLValueType (LValueClassField lvalue ident) = do
             env <- ask
             case Map.lookup (cIdent) (classes env) of
                 Nothing -> throwError $ initTypecheckError $ TCUndeclaredClass cIdent
-                Just c -> case find (\cField -> (classFieldName cField) == ident) (classFields c) of
+                Just c -> case find (\(ClassFieldDef _ cFieldIdent)  -> cFieldIdent == ident) (classFields c) of
                     Nothing -> throwError $ initTypecheckError $ TCClassDoesntHaveField (cIdent) (ident)
-                    Just field -> return $ classFieldType field
+                    Just (ClassFieldDef classFieldType _) -> return classFieldType
         _ ->  throwError $ initTypecheckError $ TCAccessOnNonClass 
 extractLValueType _ = error "TODO"
 
