@@ -205,4 +205,16 @@ nameMangleExpr (EAdd expr1 addOp expr2) = do
     expr1' <- nameMangleExpr expr1
     expr2' <- nameMangleExpr expr2
     return (EAdd expr1' addOp expr2')
+nameMangleExpr (ERel expr1 relOp expr2) = do
+    expr1' <- nameMangleExpr expr1
+    expr2' <- nameMangleExpr expr2
+    return (ERel expr1' relOp expr2')
+nameMangleExpr (EAnd expr1 expr2) = do
+    expr1' <- nameMangleExpr expr1
+    expr2' <- nameMangleExpr expr2
+    return (EAnd expr1' expr2')
+nameMangleExpr (EOr expr1 expr2) = do
+    expr1' <- nameMangleExpr expr1
+    expr2' <- nameMangleExpr expr2
+    return (EOr expr1' expr2')
 nameMangleExpr expr = return expr
