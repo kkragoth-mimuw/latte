@@ -1,5 +1,17 @@
+class CallableNested {
+	int z;
+
+	void setZ(int z) {
+		self.z = z;
+	}
+	void printZ() {
+		printInt(z);
+	}
+}
+
 class fCallable {
 	int x;
+	CallableNested nested;
 
 	void printX() {
 		printInt(x);
@@ -17,9 +29,12 @@ class havingCallable {
 int main() {
 	havingCallable h = new havingCallable;
 	h.f = new fCallable;
+	h.f.nested = new CallableNested;
 	h.f.x = 13;
 	h.test();
 	h.f.x = 42;
 	h.f.printX();
+	h.f.nested.setZ(100);
+	h.f.nested.printZ();
 	return 0;
 }
