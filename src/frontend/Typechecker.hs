@@ -384,10 +384,10 @@ typecheckExpr (EApp lvalue@(LValue name) exprs) = do
             funcType <- extractVariableType name
             typecheckFuncApplication funcType exprs
         Just thisClass -> do
-            let thisClassMethodIdents = map (\(_, (ClassMethodDef _ ident _ _ )) -> ident) (classMethods thisClass)
-
-            case find (==name) thisClassMethodIdents of
-                Just _ -> typecheckExpr (EApp (addThisToLValue lvalue) exprs)
+            case find (\(_, (ClassMethodDef _ ident _ _ )) -> ident == name) (classMethods thisClass) of
+                Just (_, ClassMethodDef retType ident args _) -> do
+                    let funcType' = Fun retType (map (\(Arg t i) -> t) args)
+                    typecheckFuncApplication funcType' exprs
                 Nothing -> do
                     funcType <- extractVariableType name
                     typecheckFuncApplication funcType exprs
@@ -401,16 +401,11 @@ typecheckExpr(EApp (LValueClassField lvalue methodIdent@(Ident ident)) exprs) = 
             classOfLValue <- case (Map.lookup cIdent (classes env)) of
                 Nothing -> throwError $ initTypecheckError $ TCErrorMessage "LValue not a valid class"
                 Just c -> return c
-
-            let classMethodIdents =  map (\(_, (ClassMethodDef _ ident _ _ )) -> ident) (classMethods classOfLValue)
-            case find (==methodIdent) classMethodIdents of
-                Just classMethod -> typecheckExpr (EApp (addThisToLValue lvalue) exprs)
-                Nothing -> do
-                    funcType <- extractVariableType methodIdent
-                    typecheckFuncApplication funcType exprs
-            let name = Ident ("__" ++ ident)
-            funcType <- extractVariableType name
-            typecheckFuncApplication funcType exprs
+            case find (\(_, (ClassMethodDef _ ident _ _ )) -> ident == methodIdent) (classMethods classOfLValue) of
+                Just (_, ClassMethodDef retType ident args _) -> do
+                    let funcType' = Fun retType (map (\(Arg t i) -> t) args)
+                    typecheckFuncApplication funcType' exprs
+                Nothing -> throwError $ initTypecheckError $ TCErrorMessage "Class doesnt have that method"
         _ -> throwError $ initTypecheckError $ TCErrorMessage "LValue not a class"
 typecheckExpr (ENew type') = do
     case type' of
@@ -516,6 +511,9 @@ thisIdent = (Ident "self")
 addThisToLValue :: LValue -> LValue
 addThisToLValue (LValue ident) = LValueClassField (LValue thisIdent) (ident)
 addThisToLValue (LValueClassField lvalue ident) = LValueClassField (addThisToLValue lvalue) (ident)
+
+-- typecheckMethodApplication :: Type -> [Expr] -> TCM Type
+-- typecheckMethodApplication ::
 
 typecheckFuncApplication :: Type -> [Expr] -> TCM Type
 typecheckFuncApplication (Fun returnType argTypes) exprs = do
