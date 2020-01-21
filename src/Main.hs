@@ -51,7 +51,7 @@ runFile v p f = readFile f >>= \s -> run v p s (Just f)
 run :: Verbosity -> ParseFun -> String -> Maybe FilePath -> IO ()
 run _ _ [] _ = exitSuccess
 run v p s filePathM = let ts = myLLexer s in case p ts of
-          Bad s    -> do 
+          Bad s    -> do  
                           putStrLn "ERROR\n"
                           putStrLn "\nParse failed...\n"
                           exitFailure

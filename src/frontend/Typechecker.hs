@@ -137,12 +137,14 @@ fillTopDefsInformation ((FnDef fnType (Ident fnNameNotNormalized) args (Block st
                 return newEnv
 fillTopDefsInformation ((ClassDef cName classPoles):xs) = do
     env <- fillTopDefsInformation xs
+    typecheckPolesDecl classPoles
 
     case S.member cName (classesCheckForDuplicates env) of
         True -> throwError $ initTypecheckError $ TCClassRedeclaration cName
         False -> return env { classesCheckForDuplicates = S.insert cName (classesCheckForDuplicates env)}
 fillTopDefsInformation ((ClassDefExt cName bName classPoles):xs) = do
     env <- fillTopDefsInformation xs
+    typecheckPolesDecl classPoles
     case Map.lookup (bName) (classes env) of
         Nothing -> throwError $ initTypecheckError $ TCUndeclaredClass bName
         Just _ ->  case S.member cName (classesCheckForDuplicates env) of
