@@ -1,0 +1,9 @@
+int main() {
+    string a = "hello ";
+    string b = "world";
+
+    if (a + b == "hello world") {
+        printString("ok");
+    }
+    return 0;
+}
