@@ -511,11 +511,33 @@ extractLValueType lvalue@(LValue ident) = do
                     case (Map.lookup ident $ typesMap env) of
                         Just (type', _) -> return type'
                         Nothing -> throwError $ initTypecheckError $ TCUndeclaredVariable ident
--- extractLValueType (LValueClassField lvalue fieldIdent@(Ident ident)) = do
---     env <- ask
---     classType <- ext
---     case (currentClass env) of
---         Nothing -> 
+extractLValueType (LValueClassField lvalue fieldIdent@(Ident ident)) = do
+    env <- ask
+    lvalueType <- extractLValueType lvalue
+    case (currentClass env) of
+        Nothing -> do
+            classTypeIdent <- case lvalueType of
+                                (ClassType ident) -> return ident
+                                _ -> throwError $ initTypecheckError $ TCErrorMessage "Not a class"
+            case Map.lookup classTypeIdent (classes env) of
+                Nothing -> throwError $ initTypecheckError $ TCErrorMessage $ "Invalid class of lvalue " ++ (show classTypeIdent) ++ "\n" ++ show (classes env)
+                Just c -> do
+                    case find(\(ClassFieldDef t i) -> i == fieldIdent) (classFields c) of
+                        Just (ClassFieldDef t _ ) -> return t
+                        Nothing -> throwError $ initTypecheckError $ TCErrorMessage $ "Class doesn't have that field"
+        Just c -> do
+            case find(\(ClassFieldDef t i) -> i == fieldIdent) (classFields c) of
+                Just (ClassFieldDef t _ ) -> return t
+                Nothing -> do
+                    classTypeIdent <- case lvalueType of
+                                (ClassType ident) -> return ident
+                                _ -> throwError $ initTypecheckError $ TCErrorMessage "Not a class"
+                    case Map.lookup classTypeIdent (classes env) of
+                        Nothing -> throwError $ initTypecheckError $ TCErrorMessage $ "Invalid class of lvalue for this"
+                        Just c -> do
+                            case find(\(ClassFieldDef t i) -> i == fieldIdent) (classFields c) of
+                                Just (ClassFieldDef t _ ) -> return t
+                                Nothing -> throwError $ initTypecheckError $ TCErrorMessage $ "Class doesn't have that field"
 extractLValueType lvalue = do
     env <- ask
 

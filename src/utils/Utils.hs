@@ -12,7 +12,7 @@ data Class = Class {
     className :: Ident,
     classFields :: [ClassPole],
     classMethods :: [(Ident, ClassPole)]
-}
+} deriving (Show)
 
 -- DFS Class ext
 type ClassDefMap = Map.Map Ident TopDef
