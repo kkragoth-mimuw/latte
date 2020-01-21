@@ -5,9 +5,7 @@
 
 -- TODO:
 -- Class Typechecker
--- Typecasting value expr
--- ERROR of while
--- Debug
+-- Testing, testing, testing...
 
 module LLVMCompiler where
 
@@ -1414,13 +1412,7 @@ compileEApp (LValue name) exprs = do
 
 typeCastArgs :: [Type] -> [LLVMVariable] -> GenM ([LLVMVariable])
 typeCastArgs fArgs args = do
-    liftIO $ putStrLn $ "Function fArgs"
-    liftIO $ putStrLn $ show fArgs
-    liftIO $ putStrLn $ "Function args"
-    liftIO $ putStrLn $ show args
-    llvmVariables <- (mapM (\(argType, llvmVariable) -> do
-                                                            liftIO $ putStrLn $ "Trying to convert " ++ (show $ type' llvmVariable) ++ " to " ++ (show $ LLVMType argType)
-                                                            case ((type' llvmVariable), (LLVMType argType)) of
+    llvmVariables <- (mapM (\(argType, llvmVariable) -> case ((type' llvmVariable), (LLVMType argType)) of
                                                                 (a, b) | a == b -> return llvmVariable
                                                                 _ -> do
                                                                     newRegister <- getNextRegisterCounter

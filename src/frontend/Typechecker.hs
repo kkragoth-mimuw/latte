@@ -16,6 +16,10 @@ import PrintLatte
 
 import Utils
 
+-- TODO: 
+-- czy pusta klasa
+-- czy poles sie nie powtarzają
+
 type TCM a = (ExceptT TypecheckErrorWithLogging (Reader TCEnv)) a
 
 data TCEnv = TCEnv {
@@ -538,6 +542,10 @@ isStmtDeclaration :: Stmt -> Bool
 isStmtDeclaration stmt = case stmt of
     (Decl _  _) -> True
     _          -> False
+
+topIdentLValue :: LValue -> Ident
+topIdentLValue (LValue ident) = ident
+topIdentLValue (LValueClassField lvalue _) = topIdentLValue lvalue
 
 allUnique xs = foldr go (\s -> s `seq` True) xs S.empty
     where

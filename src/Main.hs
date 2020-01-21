@@ -51,66 +51,66 @@ runFile v p f = readFile f >>= \s -> run v p s (Just f)
 run :: Verbosity -> ParseFun -> String -> Maybe FilePath -> IO ()
 run _ _ [] _ = exitSuccess
 run v p s filePathM = let ts = myLLexer s in case p ts of
-           Bad s    -> do putStrLn "ERROR\n"
-                          putStrLn "\nParse failed...\n"
-                          exitFailure
-           Ok  tree ->  do
-                        optimizedProgram <- runASTOptimizer tree
-                        nameMangledProgram <- runNameMangler optimizedProgram
-                        -- putStrLn $ show nameMangledProgram
-                        -- exitSuccess
-                        -- compilerInfo <- runLLVMCompiler optimizedProgram
-                        compilerInfo <- runLLVMCompiler nameMangledProgram
-                        case compilerInfo of
-                          Left error -> do
-                            putStrLn "ERROR\n"
-                            putStrLn error
-                            exitFailure
-                          Right result -> do
-                            case filePathM of
-                              Nothing -> putStr (result)
-                              Just f -> do
+          --  Bad s    -> do putStrLn "ERROR\n"
+          --                 putStrLn "\nParse failed...\n"
+          --                 exitFailure
+          --  Ok  tree ->  do
+          --               optimizedProgram <- runASTOptimizer tree
+          --               nameMangledProgram <- runNameMangler optimizedProgram
+          --               -- putStrLn $ show nameMangledProgram
+          --               -- exitSuccess
+          --               -- compilerInfo <- runLLVMCompiler optimizedProgram
+          --               compilerInfo <- runLLVMCompiler nameMangledProgram
+          --               case compilerInfo of
+          --                 Left error -> do
+          --                   putStrLn "ERROR\n"
+          --                   putStrLn error
+          --                   exitFailure
+          --                 Right result -> do
+          --                   case filePathM of
+          --                     Nothing -> putStr (result)
+          --                     Just f -> do
                                 
-                                let lliFile = (dropExtension f) <.> "ll"
-                                let bcFile = (dropExtension f) <.> "bc"
-                                let bcFileTmp = (dropExtension f) <.> "bcTMP"
-                                writeFile lliFile result
-                                (do 
-                                  callCommand $ printf("llvm-as -o %s %s > /dev/null 2> /dev/null") (show bcFileTmp) (show lliFile)
-                                  callCommand $ printf("llvm-link -o %s lib/runtime.bc %s > /dev/null 2> /dev/null") (show bcFile) (show bcFileTmp)
-                                  callCommand $ printf("rm -f %s > /dev/null") (show bcFileTmp)
-                                  putStrLn "OK"
-                                  ) `catch` catchCallCommandException
-          -- Ok  tree -> case runTypecheck initTCEnv tree of
-          --                   Left error -> do
-          --                     putStrLn "ERROR\n"
-          --                     putStrLn "typechecker error"
-          --                     pprintTypecheckerErrorMsg error
-          --                     exitFailure
-          --                   Right _ -> do
-          --                             optimizedProgram <- runASTOptimizer tree
-          --                             nameMangledProgram <- runNameMangler optimizedProgram
-          --                             compilerInfo <- runLLVMCompiler nameMangledProgram
-          --                             case compilerInfo of
-          --                               Left error -> do
-          --                                 putStrLn "ERROR\n"
-          --                                 putStrLn error
-          --                                 exitFailure
-          --                               Right result -> do
-          --                                 case filePathM of
-          --                                   Nothing -> putStr (result)
-          --                                   Just f -> do
+          --                       let lliFile = (dropExtension f) <.> "ll"
+          --                       let bcFile = (dropExtension f) <.> "bc"
+          --                       let bcFileTmp = (dropExtension f) <.> "bcTMP"
+          --                       writeFile lliFile result
+          --                       (do 
+          --                         callCommand $ printf("llvm-as -o %s %s > /dev/null 2> /dev/null") (show bcFileTmp) (show lliFile)
+          --                         callCommand $ printf("llvm-link -o %s lib/runtime.bc %s > /dev/null 2> /dev/null") (show bcFile) (show bcFileTmp)
+          --                         callCommand $ printf("rm -f %s > /dev/null") (show bcFileTmp)
+          --                         putStrLn "OK"
+          --                         ) `catch` catchCallCommandException
+          Ok  tree -> case runTypecheck initTCEnv tree of
+                            Left error -> do
+                              putStrLn "ERROR\n"
+                              putStrLn "typechecker error"
+                              pprintTypecheckerErrorMsg error
+                              exitFailure
+                            Right _ -> do
+                                      optimizedProgram <- runASTOptimizer tree
+                                      nameMangledProgram <- runNameMangler optimizedProgram
+                                      compilerInfo <- runLLVMCompiler nameMangledProgram
+                                      case compilerInfo of
+                                        Left error -> do
+                                          putStrLn "ERROR\n"
+                                          putStrLn error
+                                          exitFailure
+                                        Right result -> do
+                                          case filePathM of
+                                            Nothing -> putStr (result)
+                                            Just f -> do
                                               
-          --                                     let lliFile = (dropExtension f) <.> "ll"
-          --                                     let bcFile = (dropExtension f) <.> "bc"
-          --                                     let bcFileTmp = (dropExtension f) <.> "bcTMP"
-          --                                     writeFile lliFile result
-          --                                     (do 
-          --                                       callCommand $ printf("llvm-as -o %s %s > /dev/null 2> /dev/null") (show bcFileTmp) (show lliFile)
-          --                                       callCommand $ printf("llvm-link -o %s lib/runtime.bc %s > /dev/null 2> /dev/null") (show bcFile) (show bcFileTmp)
-          --                                       callCommand $ printf("rm -f %s > /dev/null") (show bcFileTmp)
-          --                                       putStrLn "OK"
-          --                                       ) `catch` catchCallCommandException
+                                              let lliFile = (dropExtension f) <.> "ll"
+                                              let bcFile = (dropExtension f) <.> "bc"
+                                              let bcFileTmp = (dropExtension f) <.> "bcTMP"
+                                              writeFile lliFile result
+                                              (do 
+                                                callCommand $ printf("llvm-as -o %s %s > /dev/null 2> /dev/null") (show bcFileTmp) (show lliFile)
+                                                callCommand $ printf("llvm-link -o %s lib/runtime.bc %s > /dev/null 2> /dev/null") (show bcFile) (show bcFileTmp)
+                                                callCommand $ printf("rm -f %s > /dev/null") (show bcFileTmp)
+                                                putStrLn "OK"
+                                                ) `catch` catchCallCommandException
 
 catchCallCommandException :: IOException -> IO ()
 catchCallCommandException e = do
