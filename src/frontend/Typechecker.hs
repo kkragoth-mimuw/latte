@@ -137,16 +137,35 @@ fillTopDefsInformation ((FnDef fnType (Ident fnNameNotNormalized) args (Block st
                 return newEnv
 fillTopDefsInformation ((ClassDef cName classPoles):xs) = do
     env <- fillTopDefsInformation xs
+
     case S.member cName (classesCheckForDuplicates env) of
         True -> throwError $ initTypecheckError $ TCClassRedeclaration cName
         False -> return env { classesCheckForDuplicates = S.insert cName (classesCheckForDuplicates env)}
-fillTopDefsInformation ((ClassDefExt cName bName _):xs) = do
+fillTopDefsInformation ((ClassDefExt cName bName classPoles):xs) = do
     env <- fillTopDefsInformation xs
     case Map.lookup (bName) (classes env) of
         Nothing -> throwError $ initTypecheckError $ TCUndeclaredClass bName
         Just _ ->  case S.member cName (classesCheckForDuplicates env) of
                 True -> throwError $ initTypecheckError $ TCClassRedeclaration cName
                 False -> return env { classesCheckForDuplicates = S.insert cName (classesCheckForDuplicates env)}
+
+typecheckPolesDecl :: [ClassPole] -> TCM ()
+typecheckPolesDecl classPoles = do
+    classPoleNames <- mapM getNameFromClassPole classPoles
+    
+    unless (allUnique classPoleNames)
+        (throwError $ initTypecheckError $ TCErrorMessage "Class has repeating field names")
+
+getNameFromClassPole :: ClassPole -> TCM Ident
+getNameFromClassPole (ClassFieldDef Void t) = throwError $ initTypecheckError $ TCErrorMessage "Class field declared as void"
+getNameFromClassPole (ClassFieldDef c@(ClassType cIdent) i) = do
+    env <- ask
+    case Map.lookup cIdent (classes env) of
+        Nothing -> throwError $ initTypecheckError $ TCErrorMessage $ "Class field has nonexisting class " ++ (show cIdent)
+        Just _ -> return i
+getNameFromClassPole (ClassFieldDef _ i) = return i
+getNameFromClassPole (ClassMethodDef _ i args _) = do
+    return i
 -- typecheckAllMethods :: TCM ()
 -- typecheckAllMethods = do
 --     classesMap <- asks classes
