@@ -1,0 +1,50 @@
+int main() {
+    int a = 0;
+    int b = 50;
+    int c = 2;
+    int d = 4;
+    int e = 5;
+    int f = 6;
+
+    int i = 0;
+
+    if (a < b) {
+        while (a < b) {
+            if (d < e) {
+                a++;
+                printInt(a);
+            }
+            else {
+                b++;
+                printInt(b);
+            }
+        }
+    }
+
+    while (a+b+c+d+e+f < 150) {
+        if (a < c + d + e) {
+            a++;
+        }
+        b++;
+        c++;
+        printString("abcdef");
+        printInt(a+b+c+d+e+f);
+    }
+
+    if (a < b) {
+        printInt(a);
+    } else {
+        while (i < 100) {
+            i++;
+            if (i > 30) {
+                printInt(a);
+                printInt(b);
+                printInt(c);
+                i = i+i;
+            }
+        }
+    }
+
+    printInt(a);
+    return 0;
+}   

@@ -682,11 +682,14 @@ compileStmtWithoutBranchToNextBlock (While expr stmt) = do
     afterWhileLabel <- getNewLabel
     setAsCurrentLabel ifTrueBodyLabel 
 
+    -- !!! Important
+    let newEnv = env { afterBlockJump = Just conditionLabel }
+
     case stmt of
         (BStmt (Block stmts)) -> do
-            compileStmts stmts
+            local (const newEnv) (compileStmts stmts)
         _ -> do
-            compileStmt stmt
+            local (const newEnv) (compileStmt stmt)
     emit (Branch conditionLabel)
 
     conditionLabelFollowUp <- getLabelFollowUp conditionLabel

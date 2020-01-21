@@ -51,7 +51,7 @@ L4:
 L6:
 	%r11 = load i32, i32* %r2
 	%r12 = icmp slt i32 %r11, 10
-	br i1 %r12, label %L7, label %L2
+	br i1 %r12, label %L7, label %L3
 L7:
 	%r13 = load i32, i32* %r2
 	%r14 = add i32 %r13, 1

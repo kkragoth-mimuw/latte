@@ -186,7 +186,7 @@ typecheckClassMethods c = do
 typecheckClassMethod :: (Ident, ClassPole) -> TCM ()
 typecheckClassMethod (classIdent@(Ident cName), (ClassMethodDef retType (Ident methodName) args block)) = do
     let thisArg = Arg (ClassType classIdent) thisIdent
-    typecheckTopDef (FnDef retType (Ident (cName ++ "__" ++ methodName)) ([thisArg] ++ args) block)
+    typecheckTopDef (FnDef retType (Ident (cName ++ "::" ++ methodName)) ([thisArg] ++ args) block)
 typecheckClassMethod _ = return ()
 
 typecheckMainBlock :: TCM ()
