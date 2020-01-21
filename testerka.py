@@ -47,6 +47,13 @@ config = Box({
 
             ],
             "PATH": "tests/myobjects/"
+        },
+        {
+            "NAME": "C_TESTS",
+            "WHITELIST_TESTS": [
+
+            ],
+            "PATH": "tests/cTests/"
         }
     ]
 })

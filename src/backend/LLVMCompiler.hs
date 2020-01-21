@@ -593,8 +593,10 @@ compileStmt (While expr stmt) = do
     emitInSpecificBlock preConditionLabel (Branch conditionLabel)
     condition <- compileExpr expr
     ifTrueBodyLabel <- getNewLabel
+
+    -- !!!!! IMPORTANT
     afterWhileLabel <- getNewLabel
-    let newEnv = env { afterBlockJump = Just afterWhileLabel}
+    let newEnv = env { afterBlockJump = Just conditionLabel}
     setAsCurrentLabel ifTrueBodyLabel 
 
     case stmt of

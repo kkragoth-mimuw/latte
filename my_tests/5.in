@@ -1,7 +1,0 @@
-	int main() {
-		if (1 > 2 || 3 > 4 || 5 < 6) {
-			printInt(42);
-		}
-		printString("FALSE");
-		return 0;
-	}

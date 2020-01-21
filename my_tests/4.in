@@ -1,9 +1,0 @@
-int main() {
-	if (1 < 2 && 2 < 3 && 3 < 4) {
-	// if (1 < 2 && 2 < 3) {
-		printString("yes");
-	} else {
-		printString("no");
-	}
-	return 0;
-}
