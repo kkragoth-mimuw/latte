@@ -36,7 +36,7 @@ L1:
 	%r8 = load i32, i32* %r0
 	%r9 = load i32, i32* %r1
 	%r10 = icmp eq i32 %r8, %r9
-	br i1 %r10, label %L3, label %L5
+	br i1 %r10, label %L3, label %L4
 L2:
 	ret i32 0
 L3:
@@ -44,13 +44,11 @@ L3:
 	%r12 = load i32, i32* %r3
 	%r13 = icmp eq i32 %r11, %r12
 	br i1 %r13, label %L6, label %L7
-	br label %L5
 L4:
 	%r16 = load i32, i32* %r2
 	%r17 = load i32, i32* %r3
 	%r18 = icmp eq i32 %r16, %r17
 	br i1 %r18, label %L8, label %L9
-	br label %L5
 L5:
 	store i32 2, i32* %r4
 	br label %L2

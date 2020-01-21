@@ -28,14 +28,15 @@ import Utils
 debugPrint = 0
 
 thisIdent = (Ident "self") 
-shouldCutOff = False
+shouldCutOff = True
 
 type GenM a = (ExceptT CompilationError (ReaderT Env (StateT Store IO) )) a
 
-data CompilationError = CompilationErrorFunctionHasNoExplicitReturn Ident
+data CompilationError = CompilationErrorFunctionHasNoExplicitReturn Ident | CompilationError String
 
 instance Show CompilationError where
     show (CompilationErrorFunctionHasNoExplicitReturn (Ident functionIdent)) = printf "Function %s has missing return!" functionIdent
+    show (CompilationError str) = str
 
 runLLVMCompiler :: (Compilable program) => program -> IO (Either String String)
 runLLVMCompiler program = do
@@ -448,7 +449,13 @@ compileBlock (Block stmts) = do
     return ()
 
 compileStmts :: [Stmt] -> GenM Env
-compileStmts [] = ask
+compileStmts [] = do
+    env <- ask
+    case (afterBlockJump env) of
+        Nothing -> return env
+        Just c -> do 
+            emit (Branch c)
+            return env
 compileStmts (stmt:stmts) = do
     case stmts of 
         [] -> case stmt of
@@ -521,13 +528,14 @@ compileStmt (Cond expr stmt) = do
             local (const newEnv) (compileStmts stmts)
         _ -> do
             local (const newEnv) (compileStmt stmt)
+    emit (Branch afterIfBlock)
 
     setAsCurrentLabel afterIfBlock
 
     previousLabelFollowUp <- getLabelFollowUp previousLabel
     emitInSpecificBlock previousLabelFollowUp  (BranchConditional condition ifTrueStmtsLabel afterIfBlock)
 
-    emitInSpecificBlock ifTrueStmtsLabel (Branch afterIfBlock)
+    -- emitInSpecificBlock ifTrueStmtsLabel (Branch afterIfBlock)
 
     ask
 compileStmt (CondElse expr stmtTrue stmtFalse) = do
@@ -546,18 +554,21 @@ compileStmt (CondElse expr stmtTrue stmtFalse) = do
             local (const newEnv) (compileStmts stmts)
         _ -> do
             local (const newEnv) (compileStmt stmtTrue)
+    emit (Branch afterIfBlock)
+
     setAsCurrentLabel ifFalseStmtsLabel
     case stmtFalse of
         (BStmt (Block stmts)) -> do
             local (const newEnv) (compileStmts stmts)
         _ -> do
             local (const newEnv) (compileStmt stmtFalse)
+    emit (Branch afterIfBlock)
             
     setAsCurrentLabel afterIfBlock
     previousLabelFollowUp <- getLabelFollowUp previousLabel
     emitInSpecificBlock previousLabelFollowUp (BranchConditional condition ifTrueStmtsLabel ifFalseStmtsLabel)
-    emitInSpecificBlock ifTrueStmtsLabel (Branch afterIfBlock)
-    emitInSpecificBlock ifFalseStmtsLabel (Branch afterIfBlock)
+    -- emitInSpecificBlock ifTrueStmtsLabel (Branch afterIfBlock)
+    -- emitInSpecificBlock ifFalseStmtsLabel (Branch afterIfBlock)
     ask
 compileStmt (While ELitTrue stmt) = do
     -- good catch ! 
@@ -613,12 +624,10 @@ compileStmtWithoutBranchToNextBlock (Cond expr stmt) = do
             compileStmt stmt
 
     let nextBlock = fromJust $ afterBlockJump env
+    emit (Branch nextBlock)
 
     previousLabelFollowUp <- getLabelFollowUp previousLabel
     emitInSpecificBlock previousLabelFollowUp  (BranchConditional condition ifTrueStmtsLabel nextBlock)
-
-    emit (Branch nextBlock)
-    -- setAsCurrentLabel nextBlock
 
     ask
 
@@ -630,7 +639,7 @@ compileStmtWithoutBranchToNextBlock (CondElse expr stmtTrue stmtFalse) = do
     ifTrueStmtsLabel <- getNewLabel
     ifFalseStmtsLabel <- getNewLabel
 
-    let nextBlock = fromJust $ afterBlockJump env
+    -- let nextBlock = fromJust $ afterBlockJump env
     setAsCurrentLabel ifTrueStmtsLabel
 
     case stmtTrue of
@@ -638,23 +647,30 @@ compileStmtWithoutBranchToNextBlock (CondElse expr stmtTrue stmtFalse) = do
             compileStmts stmts
         _ -> do
             compileStmt stmtTrue
+    
+    case (afterBlockJump env) of
+        Just nextBlock -> emit $ (Branch nextBlock)
+        Nothing -> return ()
+
     setAsCurrentLabel ifFalseStmtsLabel
     case stmtFalse of
         (BStmt (Block stmts)) -> do
             compileStmts stmts
         _ -> do
             compileStmt stmtFalse
+    case (afterBlockJump env) of
+        Just nextBlock -> emit $ (Branch nextBlock)
+        Nothing -> return ()
             
     previousLabelFollowUp <- getLabelFollowUp previousLabel
     emitInSpecificBlock previousLabelFollowUp (BranchConditional condition ifTrueStmtsLabel ifFalseStmtsLabel)
-    emitInSpecificBlock ifTrueStmtsLabel (Branch nextBlock)
-    emitInSpecificBlock ifFalseStmtsLabel (Branch nextBlock)
-
-    -- setAsCurrentLabel nextBlock
     ask
 compileStmtWithoutBranchToNextBlock (While expr stmt) = do
     env <- ask
-    let nextBlock = fromJust $ afterBlockJump env
+    
+    nextBlock <- case (afterBlockJump env) of
+        Just nextBlock -> return nextBlock
+        Nothing -> throwError $ CompilationError "Probably missing return after while"
 
     preConditionLabel <- gets currentLabel
     conditionLabel <- getNewLabel
