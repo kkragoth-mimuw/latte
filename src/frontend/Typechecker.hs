@@ -451,6 +451,18 @@ typecheckExpr (ERel exprLeft op exprRight) = do
         (Boolean, Boolean, NE) -> return Boolean
         (Str, Str, EQU) -> return Boolean
         (Str, Str, NE) -> return Boolean
+        (l@(ClassType a), r@(ClassType b), EQU) -> do
+            areEqual1 <- customEqualForTypes l r
+            areEqual2 <- customEqualForTypes r l
+            case areEqual1 || areEqual2 of
+                True -> return Boolean
+                False -> throwError $ initTypecheckError $ TCErrorMessage "Comparing non derived classes"
+        (l@(ClassType a), r@(ClassType b), NE) -> do
+            areEqual1 <- customEqualForTypes l r
+            areEqual2 <- customEqualForTypes r l
+            case areEqual1 || areEqual2 of
+                True -> return Boolean
+                False -> throwError $ initTypecheckError $ TCErrorMessage "Comparing non derived classes"
         (Int, Int, _) -> return Boolean
         (Int, x, _)   -> throwError $ initTypecheckError $ TCInvalidTypeExpectedType x Int
         (x, _, _)     -> throwError $ initTypecheckError $ TCInvalidTypeExpectedType x Int
@@ -508,12 +520,22 @@ extractLValueTypeOperation (LValueClassField lvalue ident) = do
         _ ->  return $ Left TCAccessOnNonClass 
 
 thisIdent = (Ident "self") 
+
 addThisToLValue :: LValue -> LValue
 addThisToLValue (LValue ident) = LValueClassField (LValue thisIdent) (ident)
 addThisToLValue (LValueClassField lvalue ident) = LValueClassField (addThisToLValue lvalue) (ident)
 
 -- typecheckMethodApplication :: Type -> [Expr] -> TCM Type
 -- typecheckMethodApplication ::
+
+-- Includes inheritance
+-- tries to downcast right to left
+customEqualForTypes :: Type -> Type -> TCM Bool
+customEqualForTypes a b | a == b = return True
+customEqualForTypes (ClassType baseIdent) (ClassType derivedIdent) = do
+    checkIfClassExtends baseIdent derivedIdent
+customEqualForTypes left right = return False
+
 
 typecheckFuncApplication :: Type -> [Expr] -> TCM Type
 typecheckFuncApplication (Fun returnType argTypes) exprs = do
@@ -522,7 +544,12 @@ typecheckFuncApplication (Fun returnType argTypes) exprs = do
 
     exprTypes <- mapM typecheckExpr exprs
 
-    let allCorrectTypes = Prelude.map (\(a, b) -> (a == b, (a, b))) (zip argTypes exprTypes)
+    -- let allCorrectTypes = Prelude.map (\(a, b) -> (a == b, (a, b))) (zip argTypes exprTypes)
+
+    allCorrectTypes <- mapM (\(a, b) -> do
+            areEqual <-customEqualForTypes a b
+            return (areEqual, (a, b))
+        ) (zip argTypes exprTypes)
     
     case find (\(eq, _) -> not eq) allCorrectTypes of
         Just (_, (a, b)) -> throwError $ initTypecheckError $ TCInvalidTypeExpectedType a b
@@ -605,3 +632,9 @@ instance Show TypecheckError where
     show (TCUndeclaredClass (Ident ident))               = printf ("Non existing class %s") (show ident)
     show (TCClassDoesntHaveField (Ident c) (Ident f))    = printf ("Class %s doesn't have field %s") (show c) (show f)
     show _ = ""
+
+-- reportError :: TypecheckError -> TCM()
+-- reportError e = throwError $ initTypecheckError $ e
+
+-- reportErrorMessage :: String -> TCM ()
+-- reportErrorMessage str = throwError $ initTypecheckError $ TCErrorMessage str
