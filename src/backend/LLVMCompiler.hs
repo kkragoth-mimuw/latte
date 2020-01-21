@@ -155,6 +155,7 @@ data LLVMVariable = LLVMVariable {
 } deriving (Show)
 
 data LLVMClass = LLVMClass {
+    llvmBaseClassName :: Maybe Ident,
     llvmClassName :: Ident,
     llvmClassFields :: [LLVMClassField],
     llvmClassMethods :: [(Ident, ClassPole)]
@@ -167,6 +168,7 @@ data LLVMClassField = LLVMClassField {
 
 classToLLVMClass :: Class -> LLVMClass
 classToLLVMClass c = LLVMClass {
+    llvmBaseClassName = baseClassName c,
     llvmClassName = className c,
     llvmClassMethods = classMethods c,
     llvmClassFields = map (\(ClassFieldDef type' ident') -> case type' of
@@ -1106,13 +1108,40 @@ compileExpr (ERel expr1 relOp expr2) = do
         ident = Nothing
     })
 
-    if (type' left == LLVMType Str) then (do case relOp of
-                                                EQU -> emit $ (Call result (Ident "__compareStringsEQ") [left, right])
-                                                NE -> emit $ (Call result (Ident "__compareStringsNE") [left, right])
-                                                _ -> return ()
-                                            )
+    case (type' left, type' right) of
+        (LLVMType Str, _ ) -> case relOp of
+                    EQU -> emit $ (Call result (Ident "__compareStringsEQ") [left, right])
+                    NE -> emit $ (Call result (Ident "__compareStringsNE") [left, right])
+                    _ -> return ()
+        (LLVMTypePointer (LLVMType (ClassType l)), LLVMTypePointer (LLVMType (ClassType r))) | l /= r -> do
+            rExtendsL <- checkIfClassExtends l r
+            lExtendsR <- checkIfClassExtends r l
+
+            when (rExtendsL) ( do
+                    right' <- typeCastArg ((ClassType l), (right))
+                    emit (Operation left (RelBinOp relOp) right' result)
+                )
+            when (lExtendsR) ( do
+                    left' <- typeCastArg ((ClassType r), (left))
+                    emit (Operation left' (RelBinOp relOp) right result)
+                )
+            -- case (rExtendsL, lExtendsR) of
+            --         (True, _) -> do
+            --             right' <- typeCastArg (ClassType l) (right)
+            --             emit (Operation left (RelBinOp relOp) right' result)
+            --         (False, True) ->
+            --             left' <- typeCastArg (ClassType r) (left)
+            --             emit (Operation left' (RelBinOp relOp) right result)
+        _ -> emit (Operation left (RelBinOp relOp) right result)
+
+    -- if (type' left == LLVMType Str) then (do case relOp of
+    --                                             EQU -> emit $ (Call result (Ident "__compareStringsEQ") [left, right])
+    --                                             NE -> emit $ (Call result (Ident "__compareStringsNE") [left, right])
+    --                                             _ -> return ()
+    --                                         )
+    -- if (type' left == LLVMTypePointer (LLVMType (LLVMC)))
                     
-    else (emit (Operation left (RelBinOp relOp) right result))
+    -- else (emit (Operation left (RelBinOp relOp) right result))
 
 
     return result
@@ -1410,23 +1439,36 @@ compileEApp (LValue name) exprs = do
             emit (Call result name typeCastedArgs)
             return result
 
+checkIfClassExtends :: Ident -> Ident -> GenM Bool
+checkIfClassExtends baseClassIdent derivedClassIdent = do
+    classesMap <- gets classes
+
+    case (Map.lookup derivedClassIdent classesMap) of
+        Nothing -> throwError $ CompilationError ("Class not in scope " ++ show derivedClassIdent)
+        Just derivedClass -> case (llvmBaseClassName derivedClass) of
+                                Nothing -> return False
+                                (Just baseClassForThisDerivedClass) | baseClassForThisDerivedClass == baseClassIdent -> return True
+                                (Just baseClassForThisDerivedClass) -> checkIfClassExtends baseClassIdent baseClassForThisDerivedClass
+
+
+typeCastArg :: (Type, LLVMVariable) -> GenM LLVMVariable
+typeCastArg (argType, llvmVariable) = do
+    case ((type' llvmVariable), (LLVMType argType)) of
+        (a, b) | a == b -> return llvmVariable
+        _ -> do
+            newRegister <- getNextRegisterCounter
+            blockLabel <- gets currentLabel
+
+            let typeCasted = (LLVMVariable {
+                type' = LLVMTypePointer (LLVMType argType),
+                address = LLVMAddressRegister newRegister,
+                blockLabel = blockLabel,
+                ident = Nothing
+            })
+
+            emit $ Bitcast typeCasted (type' llvmVariable) llvmVariable (type' typeCasted)
+            return typeCasted
 typeCastArgs :: [Type] -> [LLVMVariable] -> GenM ([LLVMVariable])
 typeCastArgs fArgs args = do
-    llvmVariables <- (mapM (\(argType, llvmVariable) -> case ((type' llvmVariable), (LLVMType argType)) of
-                                                                (a, b) | a == b -> return llvmVariable
-                                                                _ -> do
-                                                                    newRegister <- getNextRegisterCounter
-                                                                    blockLabel <- gets currentLabel
-
-                                                                    let typeCasted = (LLVMVariable {
-                                                                        type' = LLVMTypePointer (LLVMType argType),
-                                                                        address = LLVMAddressRegister newRegister,
-                                                                        blockLabel = blockLabel,
-                                                                        ident = Nothing
-                                                                    })
-
-                                                                    emit $ Bitcast typeCasted (type' llvmVariable) llvmVariable (type' typeCasted)
-                                                                    return typeCasted
-                                                    ) (zip fArgs args)
-                )
+    llvmVariables <- mapM typeCastArg (zip fArgs args)
     return llvmVariables
