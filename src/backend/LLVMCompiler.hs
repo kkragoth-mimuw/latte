@@ -28,6 +28,7 @@ import Utils
 debugPrint = 0
 
 thisIdent = (Ident "self") 
+shouldCutOff = False
 
 type GenM a = (ExceptT CompilationError (ReaderT Env (StateT Store IO) )) a
 
@@ -325,10 +326,12 @@ compileFnDef (FnDef type' ident args (Block stmts)) = do
 
     functionBlocksMap <- gets functionBlocks
     let blockMap = fromJust $ Map.lookup ident functionBlocksMap
-    optimizedBlockMap <- optimizeBlockMapReturn blockMap
+    usedBlockMap <- case shouldCutOff of
+                    True -> optimizeBlockMapReturn blockMap
+                    False -> return blockMap
 
     modify (\store -> (store {
-        functionBlocks = Map.insert ident (optimizedBlockMap) functionBlocksMap
+        functionBlocks = Map.insert ident (usedBlockMap) functionBlocksMap
     }))
 
     store <- get
@@ -615,7 +618,7 @@ compileStmtWithoutBranchToNextBlock (Cond expr stmt) = do
     emitInSpecificBlock previousLabelFollowUp  (BranchConditional condition ifTrueStmtsLabel nextBlock)
 
     emit (Branch nextBlock)
-    setAsCurrentLabel nextBlock
+    -- setAsCurrentLabel nextBlock
 
     ask
 
@@ -647,7 +650,7 @@ compileStmtWithoutBranchToNextBlock (CondElse expr stmtTrue stmtFalse) = do
     emitInSpecificBlock ifTrueStmtsLabel (Branch nextBlock)
     emitInSpecificBlock ifFalseStmtsLabel (Branch nextBlock)
 
-    setAsCurrentLabel nextBlock
+    -- setAsCurrentLabel nextBlock
     ask
 compileStmtWithoutBranchToNextBlock (While expr stmt) = do
     env <- ask
@@ -670,7 +673,7 @@ compileStmtWithoutBranchToNextBlock (While expr stmt) = do
 
     conditionLabelFollowUp <- getLabelFollowUp conditionLabel
     emitInSpecificBlock conditionLabelFollowUp (BranchConditional condition ifTrueBodyLabel nextBlock)
-    setAsCurrentLabel nextBlock
+    -- setAsCurrentLabel nextBlock
     ask
 
 compileDecls :: Type -> [Item] -> GenM Env

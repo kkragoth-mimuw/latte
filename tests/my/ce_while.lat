@@ -1,0 +1,16 @@
+int main() {
+    int a;
+    int b;
+    int c;
+
+    if (a == b) {
+        while (b < c) {
+            c++;
+        }
+    } else {
+        while (a < b) {
+            c++;
+        }
+    }
+    return 0;
+}
