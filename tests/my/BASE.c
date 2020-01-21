@@ -32,22 +32,3 @@ bool __compareStringsNE(char* s1, char *s2) {
     return (bool) (strcmp(s1, s2) != 0);
 }
 
-int main() {
-    int a = 0;
-    int b = 0;
-    int c = 0;
-    int d = 1;
-    if (a < d) {
-        while (b < 5) {
-            b++;
-            while (c < 5) {
-                c++;
-                a = a + 2;
-            }
-            int b = 2;
-        }
-        int a = 2;
-    }
-    printInt(a);
-    return 0;
-} 

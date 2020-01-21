@@ -40,13 +40,10 @@ int main() {
     if (a < d) {
         while (b < 5) {
             b++;
-            while (c < 5) {
+            while (c < 10) {
                 c++;
-                a = a + 2;
             }
-            int b = 2;
         }
-        int a = 2;
     }
     printInt(a);
     return 0;
