@@ -17,9 +17,8 @@ import PrintLatte
 import Utils
 
 -- TODO: 
--- czy pusta klasa
--- czy poles sie nie powtarzają
-
+-- methody
+-- SELF
 type TCM a = (ExceptT TypecheckErrorWithLogging (Reader TCEnv)) a
 
 data TCEnv = TCEnv {
@@ -118,6 +117,7 @@ instance Typecheckable Program where
         newEnv <- local (\env -> env { classes = classesMap }) (fillTopDefsInformation topdefs)
         local (const newEnv) (mapM_ typecheckTopDef topdefs)
         local (const newEnv) typecheckMainBlock
+        local (const newEnv) typecheckAllMethods
         return ()
 
 fillTopDefsInformation :: [TopDef] -> TCM TCEnv
@@ -168,27 +168,26 @@ getNameFromClassPole (ClassFieldDef c@(ClassType cIdent) i) = do
 getNameFromClassPole (ClassFieldDef _ i) = return i
 getNameFromClassPole (ClassMethodDef _ i args _) = do
     return i
--- typecheckAllMethods :: TCM ()
--- typecheckAllMethods = do
---     classesMap <- asks classes
+
+typecheckAllMethods :: TCM ()
+typecheckAllMethods = do
+    classesMap <- asks classes
     
---     forM_ (Map.elems classesMap) typecheckClassMethods 
+    forM_ (Map.elems classesMap) typecheckClassMethods 
 
--- typecheckClassMethods :: Class -> TCM ()
--- typecheckClassMethods c = do
---     env <- ask
---     let newEnv = env { currentClass = Just c }
+typecheckClassMethods :: Class -> TCM ()
+typecheckClassMethods c = do
+    env <- ask
+    let newEnv = env { currentClass = Just c }
+    let filteredMethods = filter (\(declaredClass, _) -> declaredClass == (className c)) (classMethods c)
 
---     forM_ (classMethods c) (\classMethod -> 
---                 local (const newEnv) (
---                         typecheckTopDef (FnDef 
---                             (classMethodReturnType classMethod)
---                             (classMethodName classMethod)
---                             (classMethodArgs classMethod)
---                             (classMethodBlock classMethod)
---                         )
---                 )
---         )
+    local (const newEnv) ( forM_ (classMethods c) (typecheckClassMethod))
+
+typecheckClassMethod :: (Ident, ClassPole) -> TCM ()
+typecheckClassMethod (classIdent@(Ident cName), (ClassMethodDef retType (Ident methodName) args block)) = do
+    let thisArg = Arg (ClassType classIdent) thisIdent
+    typecheckTopDef (FnDef retType (Ident (cName ++ "__" ++ methodName)) ([thisArg] ++ args) block)
+typecheckClassMethod _ = return ()
 
 typecheckMainBlock :: TCM ()
 typecheckMainBlock = do
@@ -497,13 +496,26 @@ typecheckExpr(EAdd expr1 addop expr2) = do
         (x, _, _)        -> throwError $ initTypecheckError $ TCInvalidTypeExpectedTypes x [Int, Str]
 
 
-typecheckExpr expr = error ("Trying to process " ++ (show expr))
-getFuncNameFromLValue :: LValue -> TCM Ident
-getFuncNameFromLValue  (LValue ident) = do
-    return ident
-getFuncNameFromLValue  _ = error "func name from lvalue"
-
 extractLValueType :: LValue -> TCM Type
+extractLValueType lvalue@(LValue ident) = do
+    env <- ask
+    case (currentClass env) of
+        Nothing -> do
+            case (Map.lookup ident $ typesMap env) of
+                Just (type', _) -> return type'
+                Nothing -> throwError $ initTypecheckError $ TCUndeclaredVariable ident
+        Just c -> do
+            case find(\(ClassFieldDef t i) -> i == ident) (classFields c) of
+                Just (ClassFieldDef t _) -> return t
+                Nothing -> do
+                    case (Map.lookup ident $ typesMap env) of
+                        Just (type', _) -> return type'
+                        Nothing -> throwError $ initTypecheckError $ TCUndeclaredVariable ident
+-- extractLValueType (LValueClassField lvalue fieldIdent@(Ident ident)) = do
+--     env <- ask
+--     classType <- ext
+--     case (currentClass env) of
+--         Nothing -> 
 extractLValueType lvalue = do
     env <- ask
 
